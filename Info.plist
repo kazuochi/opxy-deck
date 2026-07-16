@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>dev.kaz.opxy-mapper</string>
+	<key>CFBundleName</key>
+	<string>OP-XY Deck Mapper</string>
+	<key>CFBundleExecutable</key>
+	<string>opxy-mapper</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Auto-connects to the OP-XY over Bluetooth MIDI so you don't have to use Audio MIDI Setup.</string>
+</dict>
+</plist>

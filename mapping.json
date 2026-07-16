@@ -1,0 +1,73 @@
+{
+  "buttons" : [
+    {
+      "action" : "submit",
+      "cc" : 15,
+      "label" : "encoder 1 click → submit"
+    },
+    {
+      "action" : "submit",
+      "cc" : 16,
+      "label" : "encoder 2 click → submit"
+    },
+    {
+      "action" : "ptt",
+      "cc" : 55,
+      "label" : "record → ptt"
+    },
+    {
+      "action" : "submit",
+      "cc" : 56,
+      "label" : "play → submit"
+    },
+    {
+      "action" : "esc",
+      "cc" : 57,
+      "label" : "stop → esc"
+    }
+  ],
+  "keys" : [
+    {
+      "action" : "effort_command",
+      "label" : "key ✋ → effort_command",
+      "note" : 55
+    },
+    {
+      "action" : "model_picker",
+      "label" : "key num 2 → model_picker",
+      "note" : 56
+    },
+    {
+      "action" : "thinking_toggle",
+      "label" : "key ÷ → thinking_toggle",
+      "note" : 57
+    }
+  ],
+  "knobs" : [
+    {
+      "action" : "select",
+      "cc" : 1,
+      "invert" : true,
+      "label" : "encoder 1 turn → select",
+      "mode" : "absolute"
+    },
+    {
+      "action" : "effort",
+      "cc" : 2,
+      "label" : "encoder 2 turn → effort",
+      "mode" : "absolute"
+    },
+    {
+      "action" : "scroll",
+      "cc" : 3,
+      "label" : "encoder 3 turn → scroll",
+      "mode" : "absolute"
+    },
+    {
+      "action" : "scroll_page",
+      "cc" : 4,
+      "label" : "encoder 4 turn → scroll_page",
+      "mode" : "absolute"
+    }
+  ]
+}
