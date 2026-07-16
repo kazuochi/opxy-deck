@@ -4,6 +4,11 @@ Use a Teenage Engineering OP-XY as a physical control deck for Claude Code:
 dictate by holding a key, twist knobs to pick model / thinking effort / rewind
 target, dedicated keys for submit and interrupt.
 
+Mappings live in per-app **profiles** (Claude Code today; herdr, the desktop app,
+or any app that takes keystrokes tomorrow) that **hot-reload** on edit — switch by
+deck key, CLI, GUI picker, or by asking your agent to remap something. Schema and
+agent workflow: `MAPPING-SCHEMA.md`.
+
 ```
 OP-XY (MIDI controller mode) ──USB──▶ receivemidi ──▶ opxy-bridge ──▶ keystrokes ──▶ Claude Code
 ```
@@ -45,6 +50,30 @@ pick the message → submit key to revert. Same knobs work inside `/model`:
 select knob picks the model, effort knob sets the thinking effort level
 (`modelPicker` has dedicated Left/Right effort actions), submit key confirms.
 
+## Profiles
+
+One profile = one complete mapping for one context. `profiles/<name>.json` in the
+repo holds the universally useful ones (`claude-code` ships); private ones go in
+`~/.config/opxy-deck/profiles/` and win on name collision. The active profile is
+`~/.config/opxy-deck/deck-state.json` — *writing that file is switching*, so every
+switching surface is just a writer:
+
+- `make use P=<name>` (or `./opxy-bridge --use <name>`)
+- a deck key mapped to `"action": "profile_cycle"` (cycles alphabetically, chimes)
+- the GUI's profile picker
+- an agent editing the file
+
+The running bridge watches the state file and the active profile (0.5 s poll):
+edits apply live with **validate-before-swap** — a broken edit is rejected with an
+error chime (Sosumi) and the last-good mapping stays live. Switching plays the
+profile's own `chime`. `make check` validates by hand; `make profiles` lists;
+`make capture` prints the next control you touch as JSON (the "map *this* knob"
+flow). Beyond the classic actions, `type` / `key` / `turn` / `shell` primitives map
+anything — any slash command, chord, or shell hook — with zero recompiles; see
+`MAPPING-SCHEMA.md` for the full schema, action table, and agent guard rails.
+
+The old `mapping.json` (v0 arrays) still loads and `--migrate` converts it.
+
 ## Setup (once, ~10 min)
 
 1. **Install MIDI CLIs** (done if you ran the session setup):
@@ -66,12 +95,13 @@ select knob picks the model, effort knob sets the thinking effort level
    isn't `OP-XY` (the Bluetooth name can differ from the USB one). Bluetooth adds
    a few ms latency — irrelevant for button/knob presses — and reaches ~10 m.
 3. **Map your controls.** The **transport buttons** (record/play/stop → dictate/
-   submit/esc) and knobs are already set in `mapping.json`. To (re)map the **piano
-   keys** and knobs, run `make learn` — it prompts action by action ("press the pad
-   for MODEL…", "turn the knob for EFFORT…") and writes `mapping.json`; it preserves
-   your transport buttons. To change the transport buttons themselves, edit the
-   `buttons` block in `mapping.json` by hand (each is `{ "cc": N, "action": "…" }`);
-   use `make sniff` to find a button's CC. Knobs default to `"mode": "absolute"` —
+   submit/esc) and knobs are already set in `profiles/claude-code.json`. To (re)map
+   the **piano keys** and knobs, run `make learn` — it prompts action by action
+   ("press the pad for MODEL…", "turn the knob for EFFORT…") and writes the active
+   profile; it preserves everything else (transport buttons, macros). Or edit the
+   profile directly — entries are `"<control-name>": { "action": "…" }` with census
+   names like `transport.play` (see `MAPPING-SCHEMA.md`); the bridge hot-reloads and
+   `make check` validates. Knobs default to `"mode": "absolute"` —
    the OP-XY's controller-mode default is absolute 0–127 positions, and the bridge
    turns position deltas into arrow presses. Add `"invert": true` to a knob to flip
    its direction. If you switch the device's encoders to relative (shift + mid gray
@@ -165,12 +195,14 @@ clickable in its real position.
   turn/click segmented picker in the detail panel gives each its own action);
   the main knob is finite/no-click; keyboard keys are velocity-sensitive;
   everything else is a plain key.
-- **Pick an action** (incl. `shell` with a command field — e.g.
-  `herdr agent focus review` — and per-knob invert), then **Save** (⌘S). Writes
-  the same `mapping.json` the bridge reads, preserving entries it doesn't own.
-- **▶ Run / ◼ Stop bridge** from the toolbar — and Save auto-restarts a running
-  bridge, so edits apply immediately. Note: when the bridge runs from the GUI,
-  macOS asks for Accessibility for the *mapper* app (one-time).
+- **Pick an action** (incl. `shell` / `type` / `key` with a payload field — e.g.
+  `herdr agent focus review`, `/compact\n`, `M-t` — and per-knob invert), then
+  **Save** (⌘S). Writes the **active profile** (picker in the toolbar switches it,
+  live), preserving entries it doesn't own — agent-authored payloads survive GUI
+  saves — and runs `--check` on the result, showing the verdict in the status bar.
+- **▶ Run / ◼ Stop bridge** from the toolbar. No restart needed on Save — the
+  bridge hot-reloads the profile by itself. Note: when the bridge runs from the
+  GUI, macOS asks for Accessibility for the *mapper* app (one-time).
 - **OP-XY connection dot** (green/red, live), MIDI monitor + bridge log strips.
 - `make miditest` injects a synthetic test sequence for a device-free demo.
 
@@ -200,6 +232,12 @@ and `make watch` in a spare terminal.
 
 ## Roadmap
 
-- v0.2: hooks → `sendmidi` status sounds (permission needed / turn done / task
-  finished) played by the OP-XY's own synth engines; per-session voices
-- Later: session-select keys (tmux mode), launchd daemon, config hot-reload
+(v0.3 — profiles, primitives, hot reload, `--check`/`--capture`/`--use` — shipped;
+see `MAPPING-SCHEMA.md`. Architecture doc lives in the vault: `ARCHITECTURE.md`.)
+
+- Phase B: `/deck` skill — remap-by-chat from any Claude Code session
+- Phase C: menu-bar status + pin, frontmost-app follow-mode, GUI live re-render
+  on external edits, per-profile overlay-strip PDF
+- Phase D: ⌘K agent command bar in the GUI (headless `claude -p`)
+- Still parked: hooks → `sendmidi` status sounds through the OP-XY engines,
+  per-session voices, session-select keys, launchd daemon

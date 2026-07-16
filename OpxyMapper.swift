@@ -28,6 +28,19 @@ struct MappingJ: Codable {
     var keys: [KeyMapJ]; var knobs: [KnobMapJ]; var buttons: [ButtonMapJ]?
 }
 
+// Profile schema v1 (map keyed by census name — see MAPPING-SCHEMA.md)
+struct ProfileEntryJ: Codable {
+    let action: String
+    let text: String?; let chord: String?; let keys: [String]?
+    let cw: String?; let ccw: String?; let command: String?
+    let mode: String?; let invert: Bool?
+    let note: Int?; let cc: Int?; let label: String?
+}
+struct ProfileFileJ: Codable {
+    let app: String?; let chime: String?; var controls: [String: ProfileEntryJ]
+}
+struct DeckStateJ: Codable { var active: String? }
+
 // MARK: - Control catalog
 
 struct MidiId: Codable, Equatable, Hashable {
@@ -62,8 +75,8 @@ let ART_W: CGFloat = 741, ART_H: CGFloat = 265
 let GRID_X0 = 12.06, GRID_COL = 39.797
 let GRID_ROWY: [Double] = [11.77, 51.80, 91.61, 131.42, 171.21, 211.01, 250.81]
 
-let KEY_ACTIONS = ["none", "ptt", "submit", "esc", "model_picker", "effort_command", "thinking_toggle", "shell"]
-let KNOB_ACTIONS = ["none", "select", "effort", "scroll", "scroll_page"]
+let KEY_ACTIONS = ["none", "ptt", "submit", "esc", "model_picker", "effort_command", "thinking_toggle", "shell", "type", "key", "profile_cycle"]
+let KNOB_ACTIONS = ["none", "select", "effort", "scroll", "scroll_page"]  // "turn" (cw/ccw chords) is agent/JSON-only for now
 let KEYBOARD_BASE_DEFAULT = 53  // leftmost white key = F, learned 2026-07-15
 
 func catalog() -> [Control] {
@@ -321,7 +334,7 @@ final class BridgeRunner: ObservableObject {
 
         let b = Process()
         b.executableURL = URL(fileURLWithPath: dir + "/opxy-bridge")
-        b.arguments = [dir + "/mapping.json"]
+        b.arguments = []   // active profile from deck-state.json; hot-reloads on edit/switch
         b.currentDirectoryURL = URL(fileURLWithPath: dir)
         b.standardInput = mid
         let err = Pipe()
@@ -376,8 +389,53 @@ final class Store: ObservableObject {
         }
         return FileManager.default.currentDirectoryPath
     }()
-    var mappingURL: URL { URL(fileURLWithPath: dir + "/mapping.json") }
+    var mappingURL: URL { URL(fileURLWithPath: dir + "/mapping.json") }  // legacy v0 fallback
     var identsURL: URL { URL(fileURLWithPath: dir + "/opxy-controls.json") }
+
+    // Profiles (schema v1): private ~/.config/opxy-deck/profiles beats bundled <repo>/profiles.
+    // Keep path logic in sync with opxy-bridge.swift.
+    let configDir = ProcessInfo.processInfo.environment["OPXY_CONFIG_DIR"]
+        ?? (NSHomeDirectory() + "/.config/opxy-deck")
+    @Published var profileName = "claude-code"
+    var profileApp: String?
+    var profileChime: String?
+    var rawEntries: [String: ProfileEntryJ] = [:]   // full decoded entry per owned slot (keeps payloads the GUI doesn't edit)
+    var preserved: [String: ProfileEntryJ] = [:]    // entries we can't own (unknown control names/identities)
+
+    func readActiveName() -> String {
+        guard let d = try? Data(contentsOf: URL(fileURLWithPath: configDir + "/deck-state.json")),
+              let s = try? JSONDecoder().decode(DeckStateJ.self, from: d),
+              let a = s.active, !a.isEmpty else { return "claude-code" }
+        return a
+    }
+
+    func availableProfiles() -> [String] {
+        var names = Set<String>()
+        for d in [configDir + "/profiles", dir + "/profiles"] {
+            for f in (try? FileManager.default.contentsOfDirectory(atPath: d)) ?? [] where f.hasSuffix(".json") {
+                names.insert(String(f.dropLast(5)))
+            }
+        }
+        return names.isEmpty ? [profileName] : names.sorted()
+    }
+
+    func profileURL(_ name: String) -> URL {
+        let local = configDir + "/profiles/" + name + ".json"
+        if FileManager.default.fileExists(atPath: local) { return URL(fileURLWithPath: local) }
+        return URL(fileURLWithPath: dir + "/profiles/" + name + ".json")
+    }
+
+    // Switch active profile: write deck-state.json (the running bridge follows via its
+    // own watcher) and reload the panel. Unsaved edits are discarded.
+    func switchProfile(_ name: String) {
+        guard name != profileName else { return }
+        try? FileManager.default.createDirectory(atPath: configDir, withIntermediateDirectories: true)
+        let enc = JSONEncoder(); enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try? (try? enc.encode(DeckStateJ(active: name)))?
+            .write(to: URL(fileURLWithPath: configDir + "/deck-state.json"))
+        profileName = name
+        loadProfile()
+    }
 
     // Optional artwork skin: assets/opxy.pdf (converted from TE's SVG by `make gui`).
     // Present → the real panel art with transparent hotspots; absent → self-drawn panel.
@@ -445,8 +503,39 @@ final class Store: ObservableObject {
             idents.merge(saved) { _, new in new }
         }
         sanitizeIdentities()
+        profileName = readActiveName()
+        loadProfile()
+    }
+
+    func loadProfile() {
+        assigns = [:]; rawEntries = [:]; preserved = [:]
+        profileApp = nil; profileChime = nil
+        dirty = false
+        let url = profileURL(profileName)
+        if let d = try? Data(contentsOf: url),
+           let p = try? JSONDecoder().decode(ProfileFileJ.self, from: d) {
+            profileApp = p.app; profileChime = p.chime
+            for (name, e) in p.controls {
+                let resolved: String? = {
+                    if idents[name] != nil { return name }          // census-named entry
+                    if let n = e.note { return slot(for: MidiId(isNote: true, num: n)) }
+                    if let c = e.cc { return slot(for: MidiId(isNote: false, num: c)) }
+                    return nil
+                }()
+                guard let s = resolved else { preserved[name] = e; continue }
+                rawEntries[s] = e
+                let payload = e.command ?? e.text ?? e.chord ?? ""
+                assigns[s] = Assign(action: e.action, command: payload, invert: e.invert ?? false)
+            }
+            status = "profile: \(profileName) (\(p.controls.count) controls)"
+            return
+        }
+        // Legacy fallback: v0 mapping.json arrays (pre-profiles checkout)
         guard let d = try? Data(contentsOf: mappingURL),
-              let m = try? JSONDecoder().decode(MappingJ.self, from: d) else { return }
+              let m = try? JSONDecoder().decode(MappingJ.self, from: d) else {
+            status = "profile: \(profileName) (new — nothing mapped yet)"
+            return
+        }
         for k in m.keys {
             if let slot = slot(for: MidiId(isNote: true, num: k.note)) {
                 assigns[slot] = Assign(action: k.action, command: k.command ?? "", invert: false)
@@ -462,7 +551,7 @@ final class Store: ObservableObject {
                 assigns[slot] = Assign(action: b.action, command: b.command ?? "", invert: false)
             }
         }
-        status = "loaded mapping.json"
+        status = "loaded legacy mapping.json — Save writes profile \(profileName)"
     }
 
     func slot(for id: MidiId) -> String? { idents.first(where: { $0.value == id })?.key }
@@ -507,40 +596,63 @@ final class Store: ObservableObject {
         try? (try? enc.encode(idents))?.write(to: identsURL)
     }
 
+    // Write the active profile (schema v1). Preserves: entries we couldn't own, and the
+    // payload fields the GUI doesn't edit (keys sequences, cw/ccw, mode) for untouched
+    // actions — so agent-authored entries survive a GUI save.
     func save() {
-        var old = MappingJ(keys: [], knobs: [], buttons: [])
-        if let d = try? Data(contentsOf: mappingURL),
-           let m = try? JSONDecoder().decode(MappingJ.self, from: d) { old = m }
-        let ownedNotes = Set(idents.values.filter { $0.isNote }.map { $0.num })
-        let ownedCCs = Set(idents.values.filter { !$0.isNote }.map { $0.num })
-
-        var keys = old.keys.filter { !ownedNotes.contains($0.note) }
-        var knobs = old.knobs.filter { !ownedCCs.contains($0.cc) }
-        var buttons = (old.buttons ?? []).filter { !ownedCCs.contains($0.cc) }
-
+        var controls = preserved
         for (slot, a) in assigns where a.action != "none" {
-            guard let mid = idents[slot], let c = control(for: slot) else { continue }
-            let label = "\(c.name)\(isTurnSlot(slot) ? " turn" : slot.hasSuffix(".click") ? " click" : "") → \(a.action)"
-            if isTurnSlot(slot) {
-                knobs.append(KnobMapJ(cc: mid.num, mode: "absolute", action: a.action,
-                                      label: label, invert: a.invert ? true : nil))
-            } else if mid.isNote {
-                keys.append(KeyMapJ(note: mid.num, action: a.action, label: label,
-                                    command: a.action == "shell" ? a.command : nil))
-            } else {
-                buttons.append(ButtonMapJ(cc: mid.num, action: a.action, label: label,
-                                          command: a.action == "shell" ? a.command : nil))
+            guard idents[slot] != nil, control(for: slot) != nil else { continue }
+            if let raw = rawEntries[slot], raw.action == a.action,
+               a.command.isEmpty || a.command == (raw.command ?? raw.text ?? raw.chord ?? "") {
+                controls[slot] = ProfileEntryJ(
+                    action: raw.action, text: raw.text, chord: raw.chord, keys: raw.keys,
+                    cw: raw.cw, ccw: raw.ccw, command: raw.command, mode: raw.mode,
+                    invert: isTurnSlot(slot) ? (a.invert ? true : nil) : raw.invert,
+                    note: raw.note, cc: raw.cc, label: raw.label)
+                continue
             }
+            let isKnob = isTurnSlot(slot)
+            controls[slot] = ProfileEntryJ(
+                action: a.action,
+                text: a.action == "type" ? a.command : nil,
+                chord: a.action == "key" ? a.command : nil,
+                keys: nil, cw: nil, ccw: nil,
+                command: a.action == "shell" ? a.command : nil,
+                mode: isKnob ? (rawEntries[slot]?.mode ?? "absolute") : nil,
+                invert: isKnob && a.invert ? true : nil,
+                note: nil, cc: nil,   // slot ids are census names; the bridge resolves them
+                label: nil)
         }
-        keys.sort { $0.note < $1.note }; knobs.sort { $0.cc < $1.cc }; buttons.sort { $0.cc < $1.cc }
+        let url = profileURL(profileName)
+        try? FileManager.default.createDirectory(
+            atPath: url.deletingLastPathComponent().path, withIntermediateDirectories: true)
         let enc = JSONEncoder(); enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         do {
-            try enc.encode(MappingJ(keys: keys, knobs: knobs, buttons: buttons)).write(to: mappingURL)
+            try enc.encode(ProfileFileJ(app: profileApp, chime: profileChime, controls: controls))
+                .write(to: url)
             saveIdents()
             dirty = false
-            status = "saved mapping.json"
-            print("saved: \(keys.count) keys, \(knobs.count) knobs, \(buttons.count) buttons")
+            status = "saved \(profileName) (\(controls.count) controls)\(checkVerdict(url))"
+            print("saved \(url.path): \(controls.count) controls")
         } catch { status = "SAVE FAILED: \(error.localizedDescription)" }
+    }
+
+    // Validate with the engine's own checker so GUI saves get the same gate as agent edits.
+    private func checkVerdict(_ url: URL) -> String {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: dir + "/opxy-bridge")
+        p.arguments = ["--check", url.path]
+        let pipe = Pipe(); p.standardOutput = pipe; p.standardError = pipe
+        guard (try? p.run()) != nil else { return "" }   // no bridge binary → skip
+        p.waitUntilExit()
+        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        if p.terminationStatus == 0 {
+            let warns = out.split(separator: "\n").filter { $0.hasPrefix("warning") }.count
+            return warns > 0 ? " — check OK, \(warns) warning(s), see console" : " — check OK"
+        }
+        let firstErr = out.split(separator: "\n").first(where: { $0.hasPrefix("error") }) ?? "see console"
+        return " — CHECK FAILED: \(firstErr)"
     }
 }
 
@@ -754,8 +866,11 @@ struct DetailPanel: View {
                         ForEach(isTurn ? KNOB_ACTIONS : KEY_ACTIONS, id: \.self) { Text($0) }
                     }
                     .frame(width: 230)
-                    if binding.wrappedValue.action == "shell" {
-                        TextField("shell command…", text: binding.command)
+                    if ["shell", "type", "key"].contains(binding.wrappedValue.action) {
+                        TextField(binding.wrappedValue.action == "shell" ? "shell command…"
+                                  : binding.wrappedValue.action == "type" ? "text to type… (\\n = Enter)"
+                                  : "key chord… (M-t, C-c, Enter, S-Left)",
+                                  text: binding.command)
                             .textFieldStyle(.roundedBorder).font(.system(size: 11, design: .monospaced))
                             .frame(minWidth: 200, maxWidth: 340)
                     }
@@ -803,6 +918,14 @@ struct ContentView: View {
         VStack(spacing: 10) {
             HStack(spacing: 12) {
                 Text("OP-XY Claude Deck").font(.title3).bold()
+                Picker("", selection: Binding(
+                    get: { store.profileName },
+                    set: { store.switchProfile($0) }
+                )) {
+                    ForEach(store.availableProfiles(), id: \.self) { Text($0).tag($0) }
+                }
+                .frame(width: 160)
+                .help("Active profile (deck-state.json). Switching applies live — a running bridge follows. Unsaved edits are discarded.")
                 Circle().fill(midi.opxyConnected ? .green : .red).frame(width: 9, height: 9)
                 Text(midi.opxyConnected ? "OP-XY connected" : "OP-XY not found")
                     .font(.caption).foregroundColor(.secondary)
@@ -826,7 +949,7 @@ struct ContentView: View {
                 .tint(bridge.running ? .red : .green)
                 Button(store.dirty ? "Save ●" : "Save") {
                     store.save()
-                    if bridge.running { bridge.start(dir: store.dir); store.status += " — bridge restarted" }
+                    if bridge.running { store.status += " — bridge hot-reloads" }
                 }
                 .keyboardShortcut("s")
             }

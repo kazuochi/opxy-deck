@@ -44,29 +44,49 @@ define pipe_midi
 	./opxy-bridge $(1) < "$$F"'
 endef
 
-# Guided setup — press each pad / turn each knob when prompted; writes mapping.json
+# Profiles: run/dry/tmux use the active profile from ~/.config/opxy-deck/deck-state.json,
+# hot-reloaded on edit/switch. Pin one for this run with PROFILE=<name>.
+PROFARG = $(if $(PROFILE),--profile $(PROFILE))
+
+# Guided setup — press each pad / turn each knob when prompted; writes the active profile
 learn: build
-	$(call pipe_midi,--learn mapping.json)
+	$(call pipe_midi,--learn)
 
 # Decode + print actions without sending keystrokes (safe test)
 dry: build
-	$(call pipe_midi,mapping.json --dry-run)
+	$(call pipe_midi,$(PROFARG) --dry-run)
 
 # The real thing: keystrokes to the frontmost app (needs Accessibility permission)
 run: build
-	$(call pipe_midi,mapping.json)
+	$(call pipe_midi,$(PROFARG))
 
 # Focus-free variant: inject into a tmux pane, e.g. `make tmux TARGET=claude`
 tmux: build
-	$(call pipe_midi,mapping.json --tmux "$(TARGET)")
+	$(call pipe_midi,$(PROFARG) --tmux "$(TARGET)")
+
+# Validate a profile (P=<name-or-path>, default: active). Agents: run this after every edit.
+check: build
+	./opxy-bridge --check $(P)
+
+# Switch the active profile: `make use P=herdr`
+use: build
+	./opxy-bridge --use $(P)
+
+# List available profiles (* = active; private ~/.config beats bundled repo on name clash)
+profiles: build
+	./opxy-bridge --profiles
+
+# Print the next-touched control as JSON (for agents / "map this knob" flows)
+capture: build
+	$(call pipe_midi,--capture)
 
 # Audible agent status: chime when any herdr-managed agent blocks or finishes
 watch:
 	./herdr-watch.sh
 
-# Parser self-test with fake MIDI (no device needed): buttons, absolute encoder both
-# directions + rail repeat, record tap-tap
+# Full self-test with fake MIDI (no device needed): legacy + v1 schemas, primitives,
+# --check validation, --capture, state round-trip, hot reload, --migrate
 selftest: build
-	printf 'channel 1 control-change 56 127\nchannel 1 control-change 56 0\nchannel 1 control-change 57 127\nchannel 1 control-change 57 0\nchannel 1 control-change 1 10\nchannel 1 control-change 1 11\nchannel 1 control-change 1 12\nchannel 1 control-change 1 11\nchannel 1 control-change 1 0\nchannel 1 control-change 1 0\nchannel 1 control-change 2 60\nchannel 1 control-change 2 61\nchannel 1 control-change 2 60\nchannel 1 control-change 55 127\nchannel 1 control-change 55 0\nchannel 1 control-change 55 127\n' | ./opxy-bridge mapping.json --dry-run
+	./selftest.sh
 
-.PHONY: build gui miditest list sniff learn dry run tmux watch selftest
+.PHONY: build gui miditest list sniff learn dry run tmux check use profiles capture watch selftest
