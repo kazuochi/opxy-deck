@@ -135,6 +135,9 @@ let NAMED_KEYS: [String: (CGKeyCode, String)] = [
     "pageup": (116, "PPage"), "pagedown": (121, "NPage"),
     "home": (115, "Home"), "end": (119, "End"),
     "minus": (27, "-"), "equals": (24, "="),
+    "f1": (122, "F1"), "f2": (120, "F2"), "f3": (99, "F3"), "f4": (118, "F4"),
+    "f5": (96, "F5"), "f6": (97, "F6"), "f7": (98, "F7"), "f8": (100, "F8"),
+    "f9": (101, "F9"), "f10": (109, "F10"), "f11": (103, "F11"), "f12": (111, "F12"),
 ]
 // ANSI-layout single characters (kVK_ANSI_*)
 let CHAR_VK: [Character: CGKeyCode] = [

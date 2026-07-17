@@ -30,7 +30,8 @@ cat > "$OPXY_CONFIG_DIR/profiles/test.json" <<'EOF'
     "transport.stop":   { "action": "key", "keys": ["Escape", "Escape"] },
     "transport.record": { "action": "key", "chord": "M-t" },
     "enc1.turn":        { "action": "turn", "cw": "Right", "ccw": "Left" },
-    "kb.b1":            { "action": "shell", "command": "echo hi" }
+    "kb.b1":            { "action": "shell", "command": "echo hi" },
+    "kb.b2":            { "action": "key", "chord": "F6" }
   }
 }
 EOF
@@ -42,6 +43,8 @@ check "key chord M-t"        "grep -q '\[dry\] M-t' <<< \"\$OUT\""
 check "turn cw ×2"           "[ \"\$(grep -c '\[dry\] Right' <<< \"\$OUT\")\" = 2 ]"
 check "turn ccw ×1"          "[ \"\$(grep -c '\[dry\] Left' <<< \"\$OUT\")\" = 1 ]"
 check "shell on note"        "grep -q '\[dry\] shell: echo hi' <<< \"\$OUT\""
+FOUT=$(printf 'channel 1 note-on 58 100\nchannel 1 note-off 58 0\n' | ./opxy-bridge --profile test --dry-run 2>&1)
+check "function key chord F6" "grep -q '\[dry\] F6' <<< \"\$FOUT\""
 check "note+cc same num coexist" "grep -q 'shell: echo hi' <<< \"\$OUT\" && grep -q 'type' <<< \"\$OUT\""
 
 echo "— --check: valid profile passes, broken profiles fail"
