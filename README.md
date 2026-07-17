@@ -212,11 +212,21 @@ clickable in its real position.
 pane, sidebar showing each agent's state (working / blocked / done / idle), a
 persistent background server, and a socket API. The deck integrates two ways:
 
-- **Session keys → pane focus.** Map keys to `"action": "shell"` with
-  `"command": "herdr agent focus <target>"`. Targets can be pane ids (`w4:p2`)
-  or, better, **agent names** (`herdr agent rename`, or `herdr agent start
-  <name> -- claude`) — names survive layout changes. herdr's focus is
-  server-side, so every attached client follows.
+- **Bundled profile: `make use P=herdr`.** Everything from the claude-code
+  profile, plus the step row (all focus-free socket verbs, no herdr window
+  focus needed): **steps 1–4** = focus pane left/down/up/right (h j k l order,
+  matching herdr's own `prefix+h/j/k/l`), **step 5** = zoom toggle, **step 6** =
+  spawn a new Claude agent in a right split, **step 16** = cycle back to the
+  claude-code profile. Edges are harmless no-ops; herdr's focus is server-side,
+  so every attached client follows.
+- **Named session keys (add when you name agents).** `herdr agent focus <name>`
+  needs a real agent (bare panes error) — once you adopt names
+  (`herdr agent start <name> -- claude`, or `herdr agent rename`), copy the
+  profile to `~/.config/opxy-deck/profiles/herdr.json` (private wins) and add
+  steps 7–14 as `"action": "shell"`, `"command": "herdr agent focus <name>"` —
+  names survive layout changes. Tab switching is chord-only (no id-free CLI
+  verb): map a key to `"action": "key", "keys": ["C-b","n"]` (herdr defaults:
+  `prefix+n/p` tabs, `prefix+1..9` indexed).
 - **Audible status → `make watch`.** `herdr-watch.sh` polls the socket and
   chimes on any agent's state change: → blocked = urgent (needs you),
   → done / turn ended = soft chime. Works for every agent herdr detects, no
