@@ -1040,6 +1040,12 @@ if args.contains("--use") {
 if args.contains("--profiles") {
     runProfilesList()
 }
+if args.contains("--ax") {
+    // Accessibility status of the invoking terminal (doctor uses this)
+    let ok = AXIsProcessTrusted()
+    print(ok ? "granted" : "missing")
+    exit(ok ? 0 : 1)
+}
 if args.contains("--migrate") {
     guard let i = args.firstIndex(of: "--migrate"), args.count > i + 2 else {
         log("migrate: usage: opxy-bridge --migrate <old-mapping.json> <profiles/name.json>")

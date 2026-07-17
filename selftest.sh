@@ -74,6 +74,10 @@ check "capture names the control" "grep -q '\"control\":\"transport.record\"' <<
 OUT=$(printf '' | ./opxy-bridge --capture --timeout 1 2>&1); RC=$?
 check "capture EOF/timeout exit 1" "[ $RC = 1 ]"
 
+echo "— --ax reports a status"
+OUT=$(./opxy-bridge --ax 2>&1)
+check "ax prints granted|missing" "grep -Eq '^(granted|missing)$' <<< \"\$OUT\""
+
 echo "— --use / --profiles state round-trip"
 ./opxy-bridge --use test >/dev/null 2>&1 && ok "use known profile" || bad "use known profile"
 check "state file written" "grep -q '\"active\" : \"test\"' '$OPXY_CONFIG_DIR/deck-state.json' || grep -q '\"active\": \"test\"' '$OPXY_CONFIG_DIR/deck-state.json'"

@@ -84,9 +84,13 @@ capture: build
 watch:
 	./herdr-watch.sh
 
+# Preflight: toolchain, device, profile, permissions — prints the fix for anything missing
+doctor:
+	@./doctor.sh
+
 # Full self-test with fake MIDI (no device needed): legacy + v1 schemas, primitives,
 # --check validation, --capture, state round-trip, hot reload, --migrate
 selftest: build
 	./selftest.sh
 
-.PHONY: build gui miditest list sniff learn dry run tmux check use profiles capture watch selftest
+.PHONY: build gui miditest list sniff learn dry run tmux check use profiles capture watch doctor selftest

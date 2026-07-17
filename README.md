@@ -1,8 +1,16 @@
-# opxy-claude-deck
+# opxy-deck
 
-Use a Teenage Engineering OP-XY as a physical control deck for Claude Code:
-dictate by holding a key, twist knobs to pick model / thinking effort / rewind
-target, dedicated keys for submit and interrupt.
+Use a Teenage Engineering OP-XY as a physical control deck for AI coding
+agents — Claude Code and Codex, solo or multiplexed under herdr — and, via
+profiles, any Mac app that takes keystrokes. Dictate by holding a key, twist
+knobs to pick model / thinking effort / rewind target, dedicated keys for
+submit and interrupt, step keys to hop between agents.
+
+MIT licensed. Not affiliated with teenage engineering; OP-XY is their
+trademark and their excellent hardware — this is community software for it.
+
+**Preflight: `make doctor`** — checks toolchain, device, profile, and
+permissions, and prints the fix for anything missing.
 
 Mappings live in per-app **profiles** (Claude Code today; herdr, the desktop app,
 or any app that takes keystrokes tomorrow) that **hot-reload** on edit — switch by
