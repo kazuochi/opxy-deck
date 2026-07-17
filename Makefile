@@ -4,6 +4,16 @@ TARGET  ?= claude
 build:
 	swiftc -O opxy-bridge.swift -o opxy-bridge
 
+# One-time dependency install (Homebrew required)
+deps:
+	brew install gbevin/tools/receivemidi gbevin/tools/sendmidi
+
+# Install the /deck skill for Claude Code (personal scope)
+skill:
+	mkdir -p ~/.claude/skills/deck
+	cp skills/deck/SKILL.md ~/.claude/skills/deck/SKILL.md
+	@echo "installed: ~/.claude/skills/deck — try: /deck map a key to /compact"
+
 # GUI key mapper: click a control, press it on the OP-XY, assign an action, Save
 # If assets/opxy.svg exists (TE artwork, save it yourself — not redistributable),
 # it is converted to a vector PDF skin the app renders. No SVG → self-drawn panel.
@@ -93,4 +103,4 @@ doctor:
 selftest: build
 	./selftest.sh
 
-.PHONY: build gui miditest list sniff learn dry run tmux check use profiles capture watch doctor selftest
+.PHONY: build deps skill gui miditest list sniff learn dry run tmux check use profiles capture watch doctor selftest
