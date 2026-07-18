@@ -23,9 +23,9 @@ OP-XY (controller mode) ──USB/BLE──▶ receivemidi ─▶ opxy-bridge �
 
 - **macOS** (Apple Silicon or Intel) with Xcode Command Line Tools (`xcode-select --install`)
 - **Teenage Engineering OP-XY** (USB-C or Bluetooth MIDI)
-- [Homebrew](https://brew.sh) for the two MIDI CLIs
+- [Homebrew](https://brew.sh) for the MIDI CLIs and `sox`
 - **Claude Code** and/or **Codex CLI** — or any terminal app you want to drive
-- Voice (optional): Claude Code with **Claude.ai account auth** (not API key) — dictation is Claude's native cloud STT
+- Voice (optional): Claude Code with **Claude.ai account auth** (not API key) — dictation is Claude's native cloud STT — plus **`sox`** (`brew install sox`), which the terminal CLI shells out to for recording. Without it the dictation key does nothing at all, silently. Claude's *desktop app* records through its own audio stack and needs no sox, so dictation working there tells you nothing about the terminal.
 - Multi-agent (optional): [herdr](https://herdr.dev)
 
 ## Quickstart (~10 minutes)
@@ -44,7 +44,9 @@ make doctor    # preflight — prints the fix for anything missing
 3. **Accessibility permission:** System Settings → Privacy & Security →
    Accessibility → enable your terminal, restart it. (`--tmux` mode needs none.)
 4. **Voice (optional):** in Claude Code run `/voice tap` (tap mode is required —
-   hold mode can't see synthetic keys). First use prompts for mic access.
+   hold mode can't see synthetic keys). Needs `sox` (`make deps` installs it).
+   First use prompts for mic access — that grant is **per-app**, so a second
+   terminal prompts again.
 5. **Test safely, then go:**
 
 ```bash
@@ -152,6 +154,12 @@ keys are one `shell` mapping each: `herdr agent focus review`.
 - **Keystrokes silently dropped** → Accessibility not granted for the terminal
   actually running the bridge (each app grants separately; the GUI needs its
   own grant when it runs the bridge).
+- **Dictation works in Claude's desktop app but not in the terminal?** You're
+  missing `sox` — the terminal CLI records through it, the desktop app doesn't.
+  Failure is silent, and every other deck control keeps working, so it reads
+  like a MIDI or permissions fault when it isn't. `brew install sox`
+  (`make doctor` now checks this). If the *non-voice* controls are dead too,
+  it's not sox — check Accessibility above.
 - **PTT quirks are Claude's rules**: starts only on empty input; <3-word
   dictations insert but don't auto-submit; auto-stops at 15 s silence / 2 min.
   Voice needs Claude.ai auth and a local mic — it doesn't work over SSH.

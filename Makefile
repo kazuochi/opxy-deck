@@ -6,7 +6,7 @@ build:
 
 # One-time dependency install (Homebrew required)
 deps:
-	brew install gbevin/tools/receivemidi gbevin/tools/sendmidi
+	brew install gbevin/tools/receivemidi gbevin/tools/sendmidi sox
 
 # Install the /deck skill for Claude Code (personal scope)
 skill:

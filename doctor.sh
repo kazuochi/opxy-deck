@@ -49,9 +49,13 @@ if [ -x ./opxy-bridge ]; then
   fi
 fi
 
-echo "— voice (manual checklist — not verifiable from here)"
+echo "— voice"
+command -v sox >/dev/null && ok "sox (dictation recorder)" \
+  || fail "sox missing — the terminal CLI records through sox, so the dictation key will look dead: no error, nothing happens. The desktop app is unaffected (it records via its own audio stack), which is exactly why dictation can work there and nowhere else." "brew install sox"
+echo "    manual checklist — not verifiable from here:"
 echo "    · in Claude Code, run: /voice tap        (tap mode is required for the deck)"
 echo "    · dictation needs Claude.ai account auth (not API key) + mic permission on first use"
+echo "    · mic permission is per-app — granting it to one terminal does not cover another"
 echo "    · Codex panes: no native dictation — every other deck control works"
 
 echo
