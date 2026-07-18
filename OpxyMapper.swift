@@ -686,6 +686,15 @@ final class Store: ObservableObject {
         print("ax: request → trusted=\(trusted)")
     }
 
+    /// Remove a control's mapping entirely (assignment + any agent-authored payload
+    /// we were preserving). Autosave then writes the profile without the entry.
+    func clearAssign(_ slot: String) {
+        assigns.removeValue(forKey: slot)
+        rawEntries.removeValue(forKey: slot)
+        markDirty()
+        status = "cleared \(control(for: slot)?.name ?? slot)"
+    }
+
     /// Force a re-read, discarding unsaved edits. Wired to the toolbar Reload button.
     func reloadFromDisk() {
         autosaveWork?.cancel()
@@ -979,6 +988,13 @@ struct DetailPanel: View {
                     }
                     if isTurn {
                         Toggle("invert", isOn: binding.invert).font(.caption)
+                    }
+                    // Clear = remove the mapping (also drops preserved agent-authored
+                    // payload, which picking "none" in the dropdown would not)
+                    if binding.wrappedValue.action != "none" || store.rawEntries[effSlot] != nil {
+                        Button("clear") { store.clearAssign(effSlot) }
+                            .font(.caption)
+                            .help("Remove this control's mapping from the profile")
                     }
                 }
                 Spacer(minLength: 0)

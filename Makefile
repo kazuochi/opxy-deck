@@ -8,11 +8,14 @@ build:
 deps:
 	brew install gbevin/tools/receivemidi gbevin/tools/sendmidi sox
 
-# Install the /deck skill for Claude Code (personal scope)
+# Install the /deck skill for Claude Code (user scope, all directories).
+# Symlink, not copy: the skill in ~/.claude always reflects the repo, so schema
+# or guard-rail updates load by default without a reinstall step.
 skill:
-	mkdir -p ~/.claude/skills/deck
-	cp skills/deck/SKILL.md ~/.claude/skills/deck/SKILL.md
-	@echo "installed: ~/.claude/skills/deck — try: /deck map a key to /compact"
+	mkdir -p ~/.claude/skills
+	rm -rf ~/.claude/skills/deck
+	ln -sfn "$(CURDIR)/skills/deck" ~/.claude/skills/deck
+	@echo "linked: ~/.claude/skills/deck → $(CURDIR)/skills/deck (repo edits are live)"
 
 # GUI key mapper: click a control, press it on the OP-XY, assign an action, Save
 # If assets/opxy.svg exists (TE artwork, save it yourself — not redistributable),
