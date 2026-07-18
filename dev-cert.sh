@@ -38,12 +38,14 @@ EOF
 
 openssl req -x509 -newkey rsa:2048 -keyout "$TMP/key.pem" -out "$TMP/cert.pem" \
   -days 3650 -nodes -config "$TMP/ext.cnf" 2>/dev/null
-openssl pkcs12 -export -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
-  -out "$TMP/id.p12" -passout pass:opxy-tmp
 
-# Import key+cert into the login keychain, pre-authorizing codesign to use the key.
-security import "$TMP/id.p12" -k "$HOME/Library/Keychains/login.keychain-db" \
-  -P opxy-tmp -T /usr/bin/codesign
+# Import key + cert as PEM directly, pre-authorizing codesign to use the key.
+# Deliberately NOT via PKCS12: OpenSSL 3.x p12 files use encryption macOS's
+# `security import` cannot verify ("MAC verification failed") — PEM sidesteps
+# the whole format negotiation and works with any openssl.
+security import "$TMP/key.pem" -k "$HOME/Library/Keychains/login.keychain-db" \
+  -T /usr/bin/codesign
+security import "$TMP/cert.pem" -k "$HOME/Library/Keychains/login.keychain-db"
 
 # Trust the cert for code signing (user trust domain → password dialog appears).
 security add-trusted-cert -p codeSign "$TMP/cert.pem" || {
