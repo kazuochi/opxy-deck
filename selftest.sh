@@ -127,6 +127,31 @@ check "in-place edit hot-applied" "grep -q 'reloaded hotA' '$LOGF' && grep -q 't
 check "state switch hot-applied"  "grep -q 'profile: hotB' '$LOGF' && grep -q '\[dry\] Esc' '$LOGF'"
 check "broken edit keeps last-good" "grep -q 'reload FAILED' '$LOGF' && [ \"\$(grep -c '\[dry\] Esc' '$LOGF')\" = 2 ]"
 
+echo "— hold-to-repeat"
+# Explicit delay/rate (200/50 ms) so the bands don't depend on this machine's
+# key-repeat prefs. key_com = CC 29.
+cat > "$OPXY_CONFIG_DIR/profiles/rep.json" <<'EOF'
+{ "controls": { "key_com": { "action": "key", "chord": "Backspace",
+                             "repeat": true, "repeatDelayMs": 200, "repeatRateMs": 50 } } }
+EOF
+./opxy-bridge --use rep >/dev/null 2>&1
+RLOG="$TD/rep.log"
+# tap 60 ms → repeat delay never reached → exactly one fire
+( printf 'channel 1 control-change 29 127\n'; sleep 0.06
+  printf 'channel 1 control-change 29 0\n';   sleep 0.5 ) | ./opxy-bridge --dry-run > "$RLOG" 2>&1
+check "tap fires once (no repeat before delay)" "[ \"\$(grep -c Backspace '$RLOG')\" = 1 ]"
+# hold 1 s → ~17 fires (1 + repeats 200..1000 ms @50 ms); then 1.2 s held-open
+# silence after release. Band 8–24: <8 = repeat broken, >24 = release didn't cancel.
+( printf 'channel 1 control-change 29 127\n'; sleep 1.0
+  printf 'channel 1 control-change 29 0\n';   sleep 1.2 ) | ./opxy-bridge --dry-run > "$RLOG" 2>&1
+N=$(grep -c Backspace "$RLOG")
+check "hold repeats, release cancels ($N fires)" "[ \"$N\" -ge 8 ] && [ \"$N\" -le 24 ]"
+# repeat on a non-key/type action → warning, still valid
+cat > "$OPXY_CONFIG_DIR/profiles/repbad.json" <<'EOF'
+{ "controls": { "transport.play": { "action": "submit", "repeat": true } } }
+EOF
+check "repeat on wrong action warns" "./opxy-bridge --check repbad 2>&1 | grep -q 'only applies'"
+
 echo "— --migrate legacy → v1"
 ./opxy-bridge --migrate mapping.json "$TD/migrated.json" >/dev/null 2>&1 && ok "migrate runs" || bad "migrate runs"
 ./opxy-bridge --check "$TD/migrated.json" >/dev/null 2>&1 && ok "migrated profile validates" || bad "migrated profile validates"

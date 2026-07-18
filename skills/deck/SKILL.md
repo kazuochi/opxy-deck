@@ -62,6 +62,13 @@ payloads, and chord syntax. Do not rely on memory of the schema; read it.
 
 ## Guard rails (hard rules)
 
+- **Profiles only — never edit engine source.** If a request needs behavior the
+  schema cannot express (new timing semantics, new action kinds), stop and
+  propose a schema extension to the user; do not patch `opxy-bridge.swift` or
+  `OpxyMapper.swift` as part of a mapping request. Engine changes are
+  human-gated, generic rather than feature-specific, and each should make the
+  next engine change less likely. (Hold-to-repeat is already in the schema:
+  `"repeat": true` — see MAPPING-SCHEMA.md.)
 - **Transport core is invariant**: `transport.record` = `ptt`,
   `transport.play` = `submit`, `transport.stop` = `esc` in every profile.
   Refuse to remap these unless the user explicitly insists after you state the

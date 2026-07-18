@@ -91,7 +91,22 @@ struct EntryJ: Codable {
     let note: Int?
     let cc: Int?
     let label: String?         // free-form, ignored by the engine
+    // hold-to-repeat (actions "key"/"type" only): fire the payload again while held,
+    // like a real keyboard key. Delay/rate default to the user's macOS key-repeat prefs.
+    var `repeat`: Bool? = nil
+    var repeatDelayMs: Int? = nil   // before the first repeat; default = system "delay until repeat"
+    var repeatRateMs: Int? = nil    // between repeats;        default = system "key repeat rate"
 }
+
+// The user's macOS key-repeat feel, read once at startup — deck repeat should be
+// indistinguishable from holding the real key. Prefs are in ticks of 15 ms and are
+// absent until the user moves the slider; absent = system defaults (375 ms, 90 ms).
+let SYS_REPEAT: (delay: Double, rate: Double) = {
+    let g = UserDefaults.standard
+    let d = (g.object(forKey: "InitialKeyRepeat") as? Double) ?? 25
+    let r = (g.object(forKey: "KeyRepeat") as? Double) ?? 6
+    return (max(0.05, d * 0.015), max(0.02, r * 0.015))
+}()
 
 struct ProfileJ: Codable {
     let app: String?           // human label of the target app
@@ -302,6 +317,7 @@ struct RtEntry {
     let text: String?
     let chords: [KeyPress]
     let command: String?
+    var repeatSpec: (delay: Double, rate: Double)? = nil   // resolved seconds; nil = no repeat
 }
 
 struct RtKnob {
@@ -440,7 +456,17 @@ func buildRuntime(_ p: ProfileJ, census: [String: CensusId]) -> LoadResult {
                 }
             default: break
             }
-            let entry = RtEntry(control: name, action: e.action, text: e.text, chords: chords, command: e.command)
+            var rep: (delay: Double, rate: Double)? = nil
+            if e.`repeat` == true {
+                if e.action == "key" || e.action == "type" {
+                    rep = (e.repeatDelayMs.map { max(0.05, Double($0) / 1000) } ?? SYS_REPEAT.delay,
+                           e.repeatRateMs.map  { max(0.02, Double($0) / 1000) } ?? SYS_REPEAT.rate)
+                } else {
+                    res.warnings.append("\(name): \"repeat\" only applies to actions \"key\"/\"type\" — ignored on \"\(e.action)\"")
+                }
+            }
+            let entry = RtEntry(control: name, action: e.action, text: e.text, chords: chords,
+                                command: e.command, repeatSpec: rep)
             if id.isNote { rt.notes[id.num] = entry } else { rt.buttons[id.num] = entry }
         } else {
             res.errors.append("\(name): unknown action \"\(e.action)\" (knob: \(KNOB_ACTIONS.sorted().joined(separator: "/")); button: \(BUTTON_ACTIONS.sorted().joined(separator: "/")))")
@@ -535,6 +561,15 @@ final class Engine {
     var lastAbs: [Int: Int] = [:]                 // cc -> last absolute value
     let minHoldForRelease = 0.25                  // seconds; shorter = treated as tap (start only)
 
+    // Keyboard-style auto-repeat. Guarded by `lock`: press/release run on the stdin
+    // thread, swap() on the reloader's timer thread.
+    private var repeatTimers: [String: DispatchSourceTimer] = [:]
+    private let repeatQ = DispatchQueue(label: "opxy.repeat")
+    // Safety cap, the one deliberate difference from a real keyboard: a real key never
+    // loses its release, a BLE key can. Without release for this long → stop; re-press
+    // to continue. A runaway repeater aimed at Backspace would otherwise eat the prompt.
+    let maxRepeatWindow = 5.0
+
     init(sender: Sender, rt: RuntimeMapping, dryRun: Bool) {
         self.sender = sender
         self.rt = rt
@@ -545,7 +580,41 @@ final class Engine {
         lock.lock()
         rt = new
         lastAbs = [:]      // knobs re-prime on first turn after a profile change
+        repeatTimers.values.forEach { $0.cancel() }   // a held key must not repeat across a profile switch
+        repeatTimers = [:]
         lock.unlock()
+    }
+
+    // Fire the entry's payload again after `delay`, then every `rate`, until release
+    // cancels it. The cap is armed as a separate delayed cancel of this specific timer
+    // instance, so a re-press (new timer) is never killed by the old press's cap.
+    private func startRepeat(_ e: RtEntry, id: String) {
+        guard let spec = e.repeatSpec else { return }
+        let t = DispatchSource.makeTimerSource(queue: repeatQ)
+        t.schedule(deadline: .now() + spec.delay, repeating: spec.rate)
+        t.setEventHandler { [weak self] in
+            guard let self else { return }
+            switch e.action {
+            case "key":  for k in e.chords { self.sender.press(k) }
+            case "type": self.typeText(e.text ?? "")
+            default: break
+            }
+        }
+        repeatQ.asyncAfter(deadline: .now() + maxRepeatWindow) { [control = e.control] in
+            if !t.isCancelled { t.cancel(); log("repeat: \(control) capped at 5 s without release — re-press to continue") }
+        }
+        t.resume()
+        lock.lock()
+        repeatTimers.removeValue(forKey: id)?.cancel()
+        repeatTimers[id] = t
+        lock.unlock()
+    }
+
+    private func cancelRepeat(_ id: String) {
+        lock.lock()
+        let t = repeatTimers.removeValue(forKey: id)
+        lock.unlock()
+        t?.cancel()
     }
 
     private func current() -> RuntimeMapping {
@@ -567,8 +636,10 @@ final class Engine {
             sender.press(KP_ESC.named("Esc"))
         case "type":
             typeText(e.text ?? "")
+            startRepeat(e, id: id)
         case "key":
             for k in e.chords { sender.press(k) }
+            startRepeat(e, id: id)
         case "model_picker":
             sender.text("/model")
             sender.press(KP_ENTER.named("Enter (open model picker)"))
@@ -608,6 +679,7 @@ final class Engine {
     }
 
     func release(_ e: RtEntry, id: String) {
+        cancelRepeat(id)
         guard e.action == "ptt", let t0 = pttDownAt.removeValue(forKey: id) else { return }
         let held = Double(DispatchTime.now().uptimeNanoseconds - t0.uptimeNanoseconds) / 1_000_000_000
         if held >= minHoldForRelease {

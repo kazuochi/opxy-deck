@@ -1,70 +1,71 @@
 {
-  "app" : "Claude Code",
-  "chime" : "Glass",
-  "controls" : {
-    "enc1.click" : {
-      "action" : "submit",
-      "label" : "encoder 1 click → submit"
+  "app": "Claude Code",
+  "chime": "Glass",
+  "controls": {
+    "enc1.click": {
+      "action": "submit",
+      "label": "encoder 1 click → submit"
     },
-    "enc1.turn" : {
-      "action" : "select",
-      "invert" : true,
-      "label" : "encoder 1 turn → select",
-      "mode" : "absolute"
+    "enc1.turn": {
+      "action": "select",
+      "invert": true,
+      "label": "encoder 1 turn → select",
+      "mode": "absolute"
     },
-    "enc2.click" : {
-      "action" : "submit",
-      "label" : "encoder 2 click → submit"
+    "enc2.click": {
+      "action": "submit",
+      "label": "encoder 2 click → submit"
     },
-    "enc2.turn" : {
-      "action" : "effort",
-      "label" : "encoder 2 turn → effort",
-      "mode" : "absolute"
+    "enc2.turn": {
+      "action": "effort",
+      "label": "encoder 2 turn → effort",
+      "mode": "absolute"
     },
-    "enc3.turn" : {
-      "action" : "scroll",
-      "label" : "encoder 3 turn → scroll",
-      "mode" : "absolute"
+    "enc3.turn": {
+      "action": "scroll",
+      "label": "encoder 3 turn → scroll",
+      "mode": "absolute"
     },
-    "enc4.turn" : {
-      "action" : "scroll_page",
-      "label" : "encoder 4 turn → scroll_page",
-      "mode" : "absolute"
+    "enc4.turn": {
+      "action": "scroll_page",
+      "label": "encoder 4 turn → scroll_page",
+      "mode": "absolute"
     },
-    "kb.b1" : {
-      "action" : "model_picker",
-      "label" : "key num 2 → model_picker"
+    "kb.b1": {
+      "action": "model_picker",
+      "label": "key num 2 → model_picker"
     },
-    "kb.w1" : {
-      "action" : "effort_command",
-      "label" : "key ✋ → effort_command"
+    "kb.w1": {
+      "action": "effort_command",
+      "label": "key ✋ → effort_command"
     },
-    "kb.w12" : {
-      "action" : "model_picker"
+    "kb.w12": {
+      "action": "model_picker"
     },
-    "kb.w13" : {
-      "action" : "effort_command"
+    "kb.w13": {
+      "action": "effort_command"
     },
-    "kb.w2" : {
-      "action" : "thinking_toggle",
-      "label" : "key ÷ → thinking_toggle"
+    "kb.w2": {
+      "action": "thinking_toggle",
+      "label": "key ÷ → thinking_toggle"
     },
-    "key_com" : {
-      "action" : "key",
-      "chord" : "Backspace",
-      "label" : "com → backspace"
+    "key_com": {
+      "action": "key",
+      "chord": "Backspace",
+      "label": "com → backspace",
+      "repeat": true
     },
-    "transport.play" : {
-      "action" : "submit",
-      "label" : "play → submit"
+    "transport.play": {
+      "action": "submit",
+      "label": "play → submit"
     },
-    "transport.record" : {
-      "action" : "ptt",
-      "label" : "record → ptt"
+    "transport.record": {
+      "action": "ptt",
+      "label": "record → ptt"
     },
-    "transport.stop" : {
-      "action" : "esc",
-      "label" : "stop → esc"
+    "transport.stop": {
+      "action": "esc",
+      "label": "stop → esc"
     }
   }
 }

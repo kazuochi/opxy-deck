@@ -85,6 +85,25 @@ Knob options: `"mode": "absolute"` (OP-XY controller-mode default) or `"relative
 `"invert": true` flips direction. The engine decides button-vs-knob decoding **by the
 action**, so don't put knob actions on buttons or vice versa (`--check` catches it).
 
+### Hold-to-repeat (`key` and `type` only)
+
+`"repeat": true` makes a held control re-fire its payload like a real keyboard key:
+
+```jsonc
+"key_com": { "action": "key", "chord": "Backspace", "repeat": true }
+```
+
+- Delay and rate default to the **user's macOS key-repeat preferences** (System
+  Settings → Keyboard), so it feels identical to holding the physical key and
+  tracks the sliders if they change. Override per entry with `repeatDelayMs` /
+  `repeatRateMs` (clamped to ≥50/≥20 ms).
+- A quick tap fires exactly once — repeat only starts after the delay.
+- **Safety cap**: repeat stops after 5 s without a release (a BLE drop can lose
+  the release event; a real keyboard can't). Re-press to continue. This is the
+  one deliberate difference from hardware key-repeat.
+- On other actions `repeat` is ignored with a `--check` warning. Knob `turn`
+  entries repeat per detent by nature and don't take this flag.
+
 ### Chord syntax (`key`, `turn`, `keys`)
 
 `[mods-]key` — modifiers `M` (Option/Alt), `C` (Ctrl), `S` (Shift), `Cmd` (macOS only,
