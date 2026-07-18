@@ -41,6 +41,13 @@ if command -v receivemidi >/dev/null; then
 fi
 
 echo "— permissions"
+if [ -d opxy-mapper.app ]; then
+  if codesign -dv opxy-mapper.app 2>&1 | grep -q "Signature=adhoc"; then
+    warn "GUI app is ad-hoc signed — every rebuild kills its Accessibility grant (System Settings keeps showing it ticked). Fix forever: make dev-cert"
+  else
+    ok "GUI app signed with a stable identity (Accessibility grant survives rebuilds)"
+  fi
+fi
 if [ -x ./opxy-bridge ]; then
   if ./opxy-bridge --ax >/dev/null 2>&1; then
     ok "Accessibility granted for this terminal (keystrokes will send)"

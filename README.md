@@ -167,6 +167,15 @@ keys are one `shell` mapping each: `herdr agent focus review`.
   then click **Grant…** in the app's orange banner and approve. The banner
   clears itself once macOS reports the grant. A terminal running `make run` is
   unaffected — it uses the terminal's own, stable grant.
+
+  To stop this recurring, give the app a stable signing identity once:
+
+  ```bash
+  make dev-cert     # self-signed cert in your login keychain (password dialogs)
+  make gui && make ax-reset   # re-sign with it + clear the old grant, Grant… once
+  ```
+  From then on rebuilds keep the same identity and the grant survives.
+  `make doctor` warns while the app is still ad-hoc signed.
 - **Dictation works in Claude's desktop app but not in the terminal?** You're
   missing `sox` — the terminal CLI records through it, the desktop app doesn't.
   Failure is silent, and every other deck control keeps working, so it reads

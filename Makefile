@@ -33,19 +33,29 @@ gui: opxy-mapper.app
 opxy-mapper: OpxyMapper.swift
 	swiftc -O -parse-as-library OpxyMapper.swift -o opxy-mapper
 
+# Signing: prefer the stable dev identity (make dev-cert) so the Accessibility
+# grant survives rebuilds; fall back to ad-hoc, whose identity dies every rebuild.
+SIGN_ID := $(shell security find-identity -v -p codesigning 2>/dev/null | grep -q opxy-deck-dev && echo opxy-deck-dev || echo -)
+
 opxy-mapper.app: opxy-mapper Info.plist
 	rm -rf opxy-mapper.app
 	mkdir -p opxy-mapper.app/Contents/MacOS
 	cp Info.plist opxy-mapper.app/Contents/Info.plist
 	cp opxy-mapper opxy-mapper.app/Contents/MacOS/opxy-mapper
-	codesign -s - --force opxy-mapper.app 2>/dev/null || true
+	codesign -s "$(SIGN_ID)" --force opxy-mapper.app 2>/dev/null || codesign -s - --force opxy-mapper.app 2>/dev/null || true
+ifeq ($(SIGN_ID),-)
 	@echo ""
-	@echo "  ⚠︎  app re-signed → its Accessibility grant is now stale."
-	@echo "      System Settings → Privacy & Security → Accessibility:"
-	@echo "      select opxy-mapper, remove it with “−”, then add it back."
-	@echo "      (Unticking and re-ticking does NOT work — the entry must be removed.)"
-	@echo "      Unaffected: 'make run' from a terminal, which uses the terminal's grant."
+	@echo "  ⚠︎  ad-hoc re-sign → the app's Accessibility grant is now stale."
+	@echo "      fix now:     make ax-reset, relaunch, click “Grant…”"
+	@echo "      fix forever: make dev-cert   (stable identity; grant survives rebuilds)"
 	@echo ""
+else
+	@echo "  signed with stable identity '$(SIGN_ID)' — Accessibility grant survives rebuilds"
+endif
+
+# One-time: create the stable self-signed signing identity (see dev-cert.sh)
+dev-cert:
+	./dev-cert.sh
 
 # Clear the app's Accessibility entry so it can re-register cleanly.
 # Needed because the app is ad-hoc signed: its code identity changes on every
@@ -127,4 +137,4 @@ doctor:
 selftest: build
 	./selftest.sh
 
-.PHONY: build deps skill gui ax-reset miditest list sniff learn dry run tmux check use profiles capture watch doctor selftest
+.PHONY: build deps skill gui ax-reset dev-cert miditest list sniff learn dry run tmux check use profiles capture watch doctor selftest
