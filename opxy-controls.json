@@ -1,306 +1,306 @@
 {
-  "enc1.click": {
-    "isNote": false,
-    "num": 15
-  },
-  "enc1.turn": {
-    "isNote": false,
-    "num": 1
-  },
-  "enc2.click": {
-    "isNote": false,
-    "num": 16
-  },
-  "enc2.turn": {
-    "isNote": false,
-    "num": 2
-  },
-  "enc3.click": {
-    "isNote": false,
-    "num": 17
-  },
-  "enc3.turn": {
-    "isNote": false,
-    "num": 3
-  },
-  "enc4.click": {
-    "isNote": false,
-    "num": 18
-  },
-  "enc4.turn": {
-    "isNote": false,
-    "num": 4
-  },
-  "kb.b0": {
-    "isNote": true,
-    "num": 54
-  },
-  "kb.b1": {
-    "isNote": true,
-    "num": 56
-  },
-  "kb.b2": {
-    "isNote": true,
-    "num": 58
-  },
-  "kb.b3": {
-    "isNote": true,
-    "num": 61
-  },
-  "kb.b4": {
-    "isNote": true,
-    "num": 63
-  },
-  "kb.b5": {
-    "isNote": true,
-    "num": 66
-  },
-  "kb.b6": {
-    "isNote": true,
-    "num": 68
-  },
-  "kb.b7": {
-    "isNote": true,
-    "num": 70
-  },
-  "kb.b8": {
-    "isNote": true,
-    "num": 73
-  },
-  "kb.b9": {
-    "isNote": true,
-    "num": 75
-  },
-  "kb.w0": {
-    "isNote": true,
-    "num": 53
-  },
-  "kb.w1": {
-    "isNote": true,
-    "num": 55
-  },
-  "kb.w10": {
-    "isNote": true,
-    "num": 71
-  },
-  "kb.w11": {
-    "isNote": true,
-    "num": 72
-  },
-  "kb.w12": {
-    "isNote": true,
-    "num": 74
-  },
-  "kb.w13": {
-    "isNote": true,
-    "num": 76
-  },
-  "kb.w2": {
-    "isNote": true,
-    "num": 57
-  },
-  "kb.w3": {
-    "isNote": true,
-    "num": 59
-  },
-  "kb.w4": {
-    "isNote": true,
-    "num": 60
-  },
-  "kb.w5": {
-    "isNote": true,
-    "num": 62
-  },
-  "kb.w6": {
-    "isNote": true,
-    "num": 64
-  },
-  "kb.w7": {
-    "isNote": true,
-    "num": 65
-  },
-  "kb.w8": {
-    "isNote": true,
-    "num": 67
-  },
-  "kb.w9": {
-    "isNote": true,
-    "num": 69
-  },
-  "key_audio": {
-    "isNote": false,
-    "num": 28
-  },
-  "key_bar": {
-    "isNote": false,
-    "num": 30
-  },
-  "key_com": {
-    "isNote": false,
-    "num": 29
-  },
-  "key_metronome": {
-    "isNote": false,
-    "num": 6
-  },
-  "key_minus": {
-    "isNote": false,
-    "num": 58
-  },
-  "key_pen": {
-    "isNote": false,
-    "num": 5
-  },
-  "key_plus": {
-    "isNote": false,
-    "num": 59
-  },
-  "key_seq": {
-    "isNote": false,
-    "num": 27
-  },
-  "key_shift": {
-    "isNote": false,
-    "num": 60
-  },
-  "mod1": {
-    "isNote": false,
-    "num": 7
-  },
-  "mod10": {
-    "isNote": false,
-    "num": 20
-  },
-  "mod11": {
-    "isNote": false,
-    "num": 21
-  },
-  "mod12": {
-    "isNote": false,
-    "num": 22
-  },
-  "mod13": {
-    "isNote": false,
-    "num": 23
-  },
-  "mod14": {
-    "isNote": false,
-    "num": 24
-  },
-  "mod15": {
-    "isNote": false,
-    "num": 25
-  },
-  "mod16": {
-    "isNote": false,
-    "num": 26
-  },
-  "mod2": {
-    "isNote": false,
-    "num": 8
-  },
-  "mod3": {
-    "isNote": false,
-    "num": 9
-  },
-  "mod4": {
-    "isNote": false,
-    "num": 10
-  },
-  "mod5": {
-    "isNote": false,
-    "num": 11
-  },
-  "mod6": {
-    "isNote": false,
-    "num": 12
-  },
-  "mod7": {
-    "isNote": false,
-    "num": 13
-  },
-  "mod8": {
-    "isNote": false,
-    "num": 14
-  },
-  "mod9": {
-    "isNote": false,
-    "num": 19
-  },
-  "step1": {
-    "isNote": false,
-    "num": 61
-  },
-  "step10": {
-    "isNote": false,
-    "num": 70
-  },
-  "step11": {
-    "isNote": false,
-    "num": 71
-  },
-  "step12": {
-    "isNote": false,
-    "num": 72
-  },
-  "step13": {
-    "isNote": false,
-    "num": 73
-  },
-  "step14": {
-    "isNote": false,
-    "num": 74
-  },
-  "step15": {
-    "isNote": false,
-    "num": 75
-  },
-  "step16": {
-    "isNote": false,
-    "num": 76
-  },
-  "step2": {
-    "isNote": false,
-    "num": 62
-  },
-  "step3": {
-    "isNote": false,
-    "num": 63
-  },
-  "step4": {
-    "isNote": false,
-    "num": 64
-  },
-  "step5": {
-    "isNote": false,
-    "num": 65
-  },
-  "step6": {
-    "isNote": false,
-    "num": 66
-  },
-  "step7": {
-    "isNote": false,
-    "num": 67
-  },
-  "step8": {
-    "isNote": false,
-    "num": 68
-  },
-  "step9": {
-    "isNote": false,
-    "num": 69
-  },
-  "transport.play": {
-    "isNote": false,
-    "num": 56
-  },
-  "transport.record": {
-    "isNote": false,
-    "num": 55
-  },
-  "transport.stop": {
-    "isNote": false,
-    "num": 57
+  "enc1.click" : {
+    "isNote" : false,
+    "num" : 15
+  },
+  "enc1.turn" : {
+    "isNote" : false,
+    "num" : 1
+  },
+  "enc2.click" : {
+    "isNote" : false,
+    "num" : 16
+  },
+  "enc2.turn" : {
+    "isNote" : false,
+    "num" : 2
+  },
+  "enc3.click" : {
+    "isNote" : false,
+    "num" : 17
+  },
+  "enc3.turn" : {
+    "isNote" : false,
+    "num" : 3
+  },
+  "enc4.click" : {
+    "isNote" : false,
+    "num" : 18
+  },
+  "enc4.turn" : {
+    "isNote" : false,
+    "num" : 4
+  },
+  "kb.b0" : {
+    "isNote" : true,
+    "num" : 54
+  },
+  "kb.b1" : {
+    "isNote" : true,
+    "num" : 56
+  },
+  "kb.b2" : {
+    "isNote" : true,
+    "num" : 58
+  },
+  "kb.b3" : {
+    "isNote" : true,
+    "num" : 61
+  },
+  "kb.b4" : {
+    "isNote" : true,
+    "num" : 63
+  },
+  "kb.b5" : {
+    "isNote" : true,
+    "num" : 66
+  },
+  "kb.b6" : {
+    "isNote" : true,
+    "num" : 68
+  },
+  "kb.b7" : {
+    "isNote" : true,
+    "num" : 70
+  },
+  "kb.b8" : {
+    "isNote" : true,
+    "num" : 73
+  },
+  "kb.b9" : {
+    "isNote" : true,
+    "num" : 75
+  },
+  "kb.w0" : {
+    "isNote" : true,
+    "num" : 53
+  },
+  "kb.w1" : {
+    "isNote" : true,
+    "num" : 55
+  },
+  "kb.w10" : {
+    "isNote" : true,
+    "num" : 71
+  },
+  "kb.w11" : {
+    "isNote" : true,
+    "num" : 72
+  },
+  "kb.w12" : {
+    "isNote" : true,
+    "num" : 74
+  },
+  "kb.w13" : {
+    "isNote" : true,
+    "num" : 76
+  },
+  "kb.w2" : {
+    "isNote" : true,
+    "num" : 57
+  },
+  "kb.w3" : {
+    "isNote" : true,
+    "num" : 59
+  },
+  "kb.w4" : {
+    "isNote" : true,
+    "num" : 60
+  },
+  "kb.w5" : {
+    "isNote" : true,
+    "num" : 62
+  },
+  "kb.w6" : {
+    "isNote" : true,
+    "num" : 64
+  },
+  "kb.w7" : {
+    "isNote" : true,
+    "num" : 65
+  },
+  "kb.w8" : {
+    "isNote" : true,
+    "num" : 67
+  },
+  "kb.w9" : {
+    "isNote" : true,
+    "num" : 69
+  },
+  "key_audio" : {
+    "isNote" : false,
+    "num" : 28
+  },
+  "key_bar" : {
+    "isNote" : false,
+    "num" : 30
+  },
+  "key_com" : {
+    "isNote" : false,
+    "num" : 29
+  },
+  "key_metronome" : {
+    "isNote" : false,
+    "num" : 6
+  },
+  "key_minus" : {
+    "isNote" : false,
+    "num" : 58
+  },
+  "key_pen" : {
+    "isNote" : false,
+    "num" : 5
+  },
+  "key_plus" : {
+    "isNote" : false,
+    "num" : 59
+  },
+  "key_seq" : {
+    "isNote" : false,
+    "num" : 27
+  },
+  "key_shift" : {
+    "isNote" : false,
+    "num" : 60
+  },
+  "mod1" : {
+    "isNote" : false,
+    "num" : 7
+  },
+  "mod10" : {
+    "isNote" : false,
+    "num" : 20
+  },
+  "mod11" : {
+    "isNote" : false,
+    "num" : 21
+  },
+  "mod12" : {
+    "isNote" : false,
+    "num" : 22
+  },
+  "mod13" : {
+    "isNote" : false,
+    "num" : 23
+  },
+  "mod14" : {
+    "isNote" : false,
+    "num" : 24
+  },
+  "mod15" : {
+    "isNote" : false,
+    "num" : 25
+  },
+  "mod16" : {
+    "isNote" : false,
+    "num" : 26
+  },
+  "mod2" : {
+    "isNote" : false,
+    "num" : 8
+  },
+  "mod3" : {
+    "isNote" : false,
+    "num" : 9
+  },
+  "mod4" : {
+    "isNote" : false,
+    "num" : 10
+  },
+  "mod5" : {
+    "isNote" : false,
+    "num" : 11
+  },
+  "mod6" : {
+    "isNote" : false,
+    "num" : 12
+  },
+  "mod7" : {
+    "isNote" : false,
+    "num" : 13
+  },
+  "mod8" : {
+    "isNote" : false,
+    "num" : 14
+  },
+  "mod9" : {
+    "isNote" : false,
+    "num" : 19
+  },
+  "step1" : {
+    "isNote" : false,
+    "num" : 61
+  },
+  "step10" : {
+    "isNote" : false,
+    "num" : 70
+  },
+  "step11" : {
+    "isNote" : false,
+    "num" : 71
+  },
+  "step12" : {
+    "isNote" : false,
+    "num" : 72
+  },
+  "step13" : {
+    "isNote" : false,
+    "num" : 73
+  },
+  "step14" : {
+    "isNote" : false,
+    "num" : 74
+  },
+  "step15" : {
+    "isNote" : false,
+    "num" : 75
+  },
+  "step16" : {
+    "isNote" : false,
+    "num" : 76
+  },
+  "step2" : {
+    "isNote" : false,
+    "num" : 62
+  },
+  "step3" : {
+    "isNote" : false,
+    "num" : 63
+  },
+  "step4" : {
+    "isNote" : false,
+    "num" : 64
+  },
+  "step5" : {
+    "isNote" : false,
+    "num" : 65
+  },
+  "step6" : {
+    "isNote" : false,
+    "num" : 66
+  },
+  "step7" : {
+    "isNote" : false,
+    "num" : 67
+  },
+  "step8" : {
+    "isNote" : false,
+    "num" : 68
+  },
+  "step9" : {
+    "isNote" : false,
+    "num" : 69
+  },
+  "transport.play" : {
+    "isNote" : false,
+    "num" : 56
+  },
+  "transport.record" : {
+    "isNote" : false,
+    "num" : 55
+  },
+  "transport.stop" : {
+    "isNote" : false,
+    "num" : 57
   }
 }
