@@ -154,6 +154,19 @@ keys are one `shell` mapping each: `herdr agent focus review`.
 - **Keystrokes silently dropped** → Accessibility not granted for the terminal
   actually running the bridge (each app grants separately; the GUI needs its
   own grant when it runs the bridge).
+- **Bridge works from `make run` but not from the GUI's ▶ button** → the GUI app
+  lacks Accessibility. The app is ad-hoc signed, so its code identity changes on
+  every rebuild and the old grant stops matching — leaving it **ticked in System
+  Settings but refused at runtime, with nothing logged**. Adding it again with
+  "+" often re-creates the same non-matching entry. Fix:
+
+  ```bash
+  make ax-reset     # clear the stale entry
+  make gui          # relaunch
+  ```
+  then click **Grant…** in the app's orange banner and approve. The banner
+  clears itself once macOS reports the grant. A terminal running `make run` is
+  unaffected — it uses the terminal's own, stable grant.
 - **Dictation works in Claude's desktop app but not in the terminal?** You're
   missing `sox` — the terminal CLI records through it, the desktop app doesn't.
   Failure is silent, and every other deck control keeps working, so it reads

@@ -47,6 +47,15 @@ opxy-mapper.app: opxy-mapper Info.plist
 	@echo "      Unaffected: 'make run' from a terminal, which uses the terminal's grant."
 	@echo ""
 
+# Clear the app's Accessibility entry so it can re-register cleanly.
+# Needed because the app is ad-hoc signed: its code identity changes on every
+# rebuild, and a stale entry keeps the app listed-but-refused — ticked in System
+# Settings, silently denied at runtime, nothing logged. Reset, then relaunch and
+# click "Grant…" in the app.
+ax-reset:
+	tccutil reset Accessibility dev.kaz.opxy-mapper || true
+	@echo "cleared. now: make gui   → click “Grant…” in the banner → approve"
+
 # Persistent virtual MIDI source for testing GUI/bridge without the device
 miditest:
 	swiftc -O miditest.swift -o miditest
@@ -118,4 +127,4 @@ doctor:
 selftest: build
 	./selftest.sh
 
-.PHONY: build deps skill gui miditest list sniff learn dry run tmux check use profiles capture watch doctor selftest
+.PHONY: build deps skill gui ax-reset miditest list sniff learn dry run tmux check use profiles capture watch doctor selftest

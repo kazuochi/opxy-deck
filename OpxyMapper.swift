@@ -663,6 +663,23 @@ final class Store: ObservableObject {
         print("watch: reloaded \(profileName) — edited on disk (\(assigns.count) controls)")
     }
 
+    /// Ask macOS for Accessibility via the system prompt.
+    ///
+    /// This is the reliable path for an ad-hoc-signed app. Dragging the bundle into the
+    /// Accessibility list with "+" records an entry keyed to a code identity that often
+    /// fails to match at launch — the app shows as ticked and is still refused, with
+    /// nothing logged. Requesting registers the identity the system actually sees.
+    /// Already-listed-but-stale entries must be cleared first: `make ax-reset`.
+    func requestAccessibility() {
+        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        let trusted = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+        axTrusted = trusted
+        status = trusted
+            ? "Accessibility granted"
+            : "Accessibility requested — approve in System Settings. Already listed? run: make ax-reset"
+        print("ax: request → trusted=\(trusted)")
+    }
+
     /// Force a re-read, discarding unsaved edits. Wired to the toolbar Reload button.
     func reloadFromDisk() {
         autosaveWork?.cancel()
@@ -1047,6 +1064,10 @@ struct ContentView: View {
                 HStack(spacing: 8) {
                     Text("⚠︎ Accessibility not granted to this app — a bridge run from here will send nothing.")
                         .font(.caption)
+                    // Prefer the prompt over the settings pane: see requestAccessibility().
+                    Button("Grant…") { store.requestAccessibility() }
+                        .font(.caption).controlSize(.small)
+                        .help("Asks macOS directly. If the app is already listed but still refused, the entry is stale — run `make ax-reset` in the repo, then click this again.")
                     Button("Open settings") {
                         NSWorkspace.shared.open(URL(string:
                             "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
