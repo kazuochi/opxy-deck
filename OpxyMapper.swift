@@ -641,6 +641,7 @@ final class Store: ObservableObject {
         RunLoop.main.add(t, forMode: .common)
         watchTimer = t
         axTrusted = AXIsProcessTrusted()
+        checkSkill()
     }
 
     func pollExternalChanges() {
@@ -684,6 +685,33 @@ final class Store: ObservableObject {
             ? "Accessibility granted"
             : "Accessibility requested — approve in System Settings. Already listed? run: make ax-reset"
         print("ax: request → trusted=\(trusted)")
+    }
+
+    // MARK: - /deck skill (conversational mapping for Claude Code)
+    //
+    // The skill is a symlink in ~/.claude/skills pointing at the repo, so it always
+    // reflects the current schema and guard rails. The GUI detects a missing OR
+    // stale-copy install (destinationOfSymbolicLink throws on a plain directory)
+    // and offers one-click install rather than silently writing outside the repo.
+
+    @Published var skillLinked = true
+    var skillLink: String { NSHomeDirectory() + "/.claude/skills/deck" }
+    var skillTarget: String { dir + "/skills/deck" }
+
+    func checkSkill() {
+        skillLinked = (try? FileManager.default.destinationOfSymbolicLink(atPath: skillLink)) == skillTarget
+    }
+
+    func installSkill() {
+        let fm = FileManager.default
+        try? fm.createDirectory(atPath: NSHomeDirectory() + "/.claude/skills",
+                                withIntermediateDirectories: true)
+        try? fm.removeItem(atPath: skillLink)   // replaces an old copy-install too
+        do {
+            try fm.createSymbolicLink(atPath: skillLink, withDestinationPath: skillTarget)
+            status = "/deck skill installed — any Claude Code session can now remap the deck"
+        } catch { status = "skill install failed: \(error.localizedDescription)" }
+        checkSkill()
     }
 
     /// Remove a control's mapping entirely (assignment + any agent-authored payload
@@ -1101,6 +1129,19 @@ struct ContentView: View {
                 .padding(.horizontal, 8).padding(.vertical, 5)
                 .background(Color.orange.opacity(0.18)).cornerRadius(6)
                 .help("After a rebuild the old entry is stale: remove opxy-mapper with “−”, then re-add it. Toggling the checkbox off/on is not enough. `make run` from a terminal is unaffected — the terminal holds its own grant.")
+            }
+
+            if !store.skillLinked {
+                HStack(spacing: 8) {
+                    Text("✦ /deck skill not installed — lets any Claude Code session remap this deck conversationally.")
+                        .font(.caption)
+                    Button("Install") { store.installSkill() }
+                        .font(.caption).controlSize(.small)
+                    Spacer()
+                }
+                .padding(.horizontal, 8).padding(.vertical, 5)
+                .background(Color.blue.opacity(0.15)).cornerRadius(6)
+                .help("Creates a symlink at ~/.claude/skills/deck pointing into this repo, so the skill always matches the schema. Same as `make skill`.")
             }
 
             Spacer(minLength: 0)
