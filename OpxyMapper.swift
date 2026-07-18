@@ -10,6 +10,7 @@
 
 import SwiftUI
 import CoreMIDI
+import ApplicationServices   // AXIsProcessTrusted — Accessibility state for the banner
 import CoreBluetooth
 import CoreAudioKit
 
@@ -512,7 +513,8 @@ final class Store: ObservableObject {
         profileApp = nil; profileChime = nil
         dirty = false
         let url = profileURL(profileName)
-        if let d = try? Data(contentsOf: url),
+        lastSeenProfile = try? Data(contentsOf: url)
+        if let d = lastSeenProfile,
            let p = try? JSONDecoder().decode(ProfileFileJ.self, from: d) {
             profileApp = p.app; profileChime = p.chime
             for (name, e) in p.controls {
@@ -580,7 +582,7 @@ final class Store: ObservableObject {
             } else {
                 status = "\(control(for: armedSlot)?.name ?? armedSlot) = \(mid.text)"
             }
-            armed = nil; dirty = true; saveIdents()
+            armed = nil; saveIdents(); markDirty()
             return
         }
         if let mid = id, let slot = slot(for: mid) {
@@ -596,10 +598,84 @@ final class Store: ObservableObject {
         try? (try? enc.encode(idents))?.write(to: identsURL)
     }
 
+    // MARK: - Autosave + external-change watching
+    //
+    // The profile file is shared with the bridge (hot-reloads it), the CLI, and any
+    // agent using the /deck skill. So the GUI is one of several writers: it saves
+    // without being asked, and picks up other writers' edits without being asked.
+    //
+    // Loop avoidance is by content, not timestamp: `lastSeenProfile` holds the exact
+    // bytes we last read OR wrote, so our own save never reads back as a foreign edit
+    // (mtime comparison would be racy at this granularity).
+
+    private var autosaveWork: DispatchWorkItem?
+    private var watchTimer: Timer?
+    var lastSeenProfile: Data?
+    @Published var axTrusted: Bool = AXIsProcessTrusted()
+
+    /// Mark an edit and schedule a debounced write. Replaces bare `dirty = true`.
+    func markDirty() {
+        dirty = true
+        autosaveWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.dirty else { return }
+            self.save(auto: true)
+        }
+        autosaveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
+    }
+
+    func startWatching() {
+        watchTimer?.invalidate()
+        // 0.7 s mtime-free content poll on two small JSON files — negligible next to
+        // the MIDI thread, and it keeps the panel honest when an agent edits behind us.
+        let t = Timer.scheduledTimer(withTimeInterval: 0.7, repeats: true) { [weak self] _ in
+            self?.pollExternalChanges()
+        }
+        RunLoop.main.add(t, forMode: .common)
+        watchTimer = t
+        axTrusted = AXIsProcessTrusted()
+    }
+
+    func pollExternalChanges() {
+        axTrusted = AXIsProcessTrusted()
+
+        // Someone switched the active profile (agent, `make use`, another GUI).
+        let active = readActiveName()
+        if active != profileName {
+            profileName = active
+            loadProfile()
+            status = "profile switched on disk → \(active)"
+            print("watch: profile switched on disk → \(active)")
+            return
+        }
+
+        // A pending local edit wins; its autosave lands within 0.4 s and this
+        // resolves on the next tick. Prevents clobbering mid-typing.
+        guard !dirty else { return }
+
+        guard let d = try? Data(contentsOf: profileURL(profileName)) else { return }
+        guard d != lastSeenProfile else { return }
+        let keptSelection = selected
+        loadProfile()
+        selected = keptSelection            // don't yank the inspector out from under the user
+        status = "reloaded \(profileName) — edited on disk"
+        print("watch: reloaded \(profileName) — edited on disk (\(assigns.count) controls)")
+    }
+
+    /// Force a re-read, discarding unsaved edits. Wired to the toolbar Reload button.
+    func reloadFromDisk() {
+        autosaveWork?.cancel()
+        dirty = false
+        profileName = readActiveName()
+        loadProfile()
+        status = "reloaded \(profileName) from disk"
+    }
+
     // Write the active profile (schema v1). Preserves: entries we couldn't own, and the
     // payload fields the GUI doesn't edit (keys sequences, cw/ccw, mode) for untouched
     // actions — so agent-authored entries survive a GUI save.
-    func save() {
+    func save(auto: Bool = false) {
         var controls = preserved
         for (slot, a) in assigns where a.action != "none" {
             guard idents[slot] != nil, control(for: slot) != nil else { continue }
@@ -629,12 +705,15 @@ final class Store: ObservableObject {
             atPath: url.deletingLastPathComponent().path, withIntermediateDirectories: true)
         let enc = JSONEncoder(); enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         do {
-            try enc.encode(ProfileFileJ(app: profileApp, chime: profileChime, controls: controls))
-                .write(to: url)
+            let data = try enc.encode(
+                ProfileFileJ(app: profileApp, chime: profileChime, controls: controls))
+            try data.write(to: url)
+            lastSeenProfile = data      // our own bytes — the watcher must not re-read this as foreign
             saveIdents()
             dirty = false
-            status = "saved \(profileName) (\(controls.count) controls)\(checkVerdict(url))"
-            print("saved \(url.path): \(controls.count) controls")
+            let verb = auto ? "auto-saved" : "saved"
+            status = "\(verb) \(profileName) (\(controls.count) controls)\(checkVerdict(url))"
+            print("\(verb) \(url.path): \(controls.count) controls")
         } catch { status = "SAVE FAILED: \(error.localizedDescription)" }
     }
 
@@ -860,7 +939,7 @@ struct DetailPanel: View {
                     let isTurn = store.isTurnSlot(effSlot)
                     let binding = Binding<Assign>(
                         get: { store.assigns[effSlot] ?? Assign() },
-                        set: { store.assigns[effSlot] = $0; store.dirty = true }
+                        set: { store.assigns[effSlot] = $0; store.markDirty() }
                     )
                     Picker("action", selection: binding.action) {
                         ForEach(isTurn ? KNOB_ACTIONS : KEY_ACTIONS, id: \.self) { Text($0) }
@@ -947,11 +1026,37 @@ struct ContentView: View {
                     bridge.running ? bridge.stop() : bridge.start(dir: store.dir)
                 }
                 .tint(bridge.running ? .red : .green)
-                Button(store.dirty ? "Save ●" : "Save") {
-                    store.save()
-                    if bridge.running { store.status += " — bridge hot-reloads" }
+                Button("↻ Reload") { store.reloadFromDisk() }
+                    .font(.caption)
+                    .help("Re-read the profile from disk, discarding unsaved edits. Edits made elsewhere are picked up automatically within ~1 s; this is the manual nudge.")
+                // Edits autosave ~0.4 s after the last change; ⌘S forces one now.
+                Text(store.dirty ? "saving…" : "saved")
+                    .font(.caption2)
+                    .foregroundColor(store.dirty ? .orange : .secondary.opacity(0.7))
+                    .frame(width: 46, alignment: .leading)
+                Button("") { store.save() }
+                    .keyboardShortcut("s")
+                    .frame(width: 0).opacity(0).accessibilityHidden(true)
+            }
+
+            // Accessibility is granted to this .app's code signature, not to "the deck".
+            // The app is ad-hoc signed, so every `make gui` rebuild changes its cdhash and
+            // silently invalidates the grant — while System Settings still shows it ticked.
+            // That failure is invisible (keystrokes just vanish), so name it here.
+            if !store.axTrusted {
+                HStack(spacing: 8) {
+                    Text("⚠︎ Accessibility not granted to this app — a bridge run from here will send nothing.")
+                        .font(.caption)
+                    Button("Open settings") {
+                        NSWorkspace.shared.open(URL(string:
+                            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                    }
+                    .font(.caption).controlSize(.small)
+                    Spacer()
                 }
-                .keyboardShortcut("s")
+                .padding(.horizontal, 8).padding(.vertical, 5)
+                .background(Color.orange.opacity(0.18)).cornerRadius(6)
+                .help("After a rebuild the old entry is stale: remove opxy-mapper with “−”, then re-add it. Toggling the checkbox off/on is not enough. `make run` from a terminal is unaffected — the terminal holds its own grant.")
             }
 
             Spacer(minLength: 0)
@@ -993,6 +1098,7 @@ struct ContentView: View {
         .onAppear {
             setvbuf(stdout, nil, _IOLBF, 0)
             store.load()
+            store.startWatching()
             midi.onEvent = { store.handle($0) }
             midi.start()
             bridge.onLog = { line in
