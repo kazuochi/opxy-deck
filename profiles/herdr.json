@@ -1,10 +1,32 @@
 {
+  "agents" : {
+    "codex" : {
+      "effort_command" : {
+        "action" : "type",
+        "label" : "codex: effort lives inside /model",
+        "text" : "/model\n"
+      },
+      "ptt" : {
+        "action" : "ptt",
+        "label" : "codex: native hold-to-dictate (v0.105+)",
+        "style" : "hold"
+      },
+      "thinking_toggle" : {
+        "action" : "nop",
+        "label" : "codex: no thinking-toggle equivalent"
+      }
+    }
+  },
   "app" : "herdr (multi-agent)",
   "chime" : "Ping",
   "controls" : {
     "enc1.click" : {
       "action" : "submit",
       "label" : "encoder 1 click → submit"
+    },
+    "enc1.turn" : {
+      "action" : "select",
+      "mode" : "absolute"
     },
     "enc2.click" : {
       "action" : "submit",
@@ -68,13 +90,33 @@
     },
     "key_minus" : {
       "action" : "key",
-      "keys" : ["/", "e", "f", "f", "o", "r", "t", "Enter", "Left"],
-      "label" : "minus → /effort then Left (lower effort)"
+      "keys" : [
+        "\/",
+        "e",
+        "f",
+        "f",
+        "o",
+        "r",
+        "t",
+        "Enter",
+        "Left"
+      ],
+      "label" : "minus → \/effort then Left (lower effort)"
     },
     "key_plus" : {
       "action" : "key",
-      "keys" : ["/", "e", "f", "f", "o", "r", "t", "Enter", "Right"],
-      "label" : "plus → /effort then Right (raise effort)"
+      "keys" : [
+        "\/",
+        "e",
+        "f",
+        "f",
+        "o",
+        "r",
+        "t",
+        "Enter",
+        "Right"
+      ],
+      "label" : "plus → \/effort then Right (raise effort)"
     },
     "mod10" : {
       "action" : "shell",

@@ -70,6 +70,7 @@ The main volume knob transmits nothing (stays hardware volume).
 | `model_picker` | — | Types `/model` + Enter (≡ `type "/model\n"`) |
 | `effort_command` | — | Types `/effort` + Enter |
 | `thinking_toggle` | — | Option+T (≡ `key "M-t"`) |
+| `nop` | — | Explicit do-nothing (logs). Useful as a per-agent override for a verb an agent lacks |
 
 **Knob actions** (CC encoders; fire per detent):
 
@@ -103,6 +104,32 @@ action**, so don't put knob actions on buttons or vice versa (`--check` catches 
   one deliberate difference from hardware key-repeat.
 - On other actions `repeat` is ignored with a `--check` warning. Knob `turn`
   entries repeat per detent by nature and don't take this flag.
+
+### Per-agent routing (`agents` + `detect`, optional)
+
+For a profile whose panes host **different agents** (herdr multiplexing Claude Code
+and Codex), a top-level `agents` section overrides key/button entries **by action
+name** when the focused pane's agent label matches:
+
+```jsonc
+"agents": {
+  "codex": {
+    "effort_command":  { "action": "type", "text": "/model\n" },  // effort lives in Codex's /model
+    "thinking_toggle": { "action": "nop" },                        // no equivalent
+    "ptt":             { "action": "ptt", "style": "hold" }        // Codex hold-to-dictate
+  }
+}
+```
+
+- Detection runs **per press**, only in profiles that have `agents` (~6 ms):
+  built-in is herdr (`herdr pane current` → `.result.pane.agent`). A top-level
+  `"detect": "<shell command>"` replaces it — the command prints a bare label.
+- The press's resolution is pinned until release (a ptt release always pairs with
+  the entry its press used, even if focus moves mid-hold).
+- No herdr / detector fails (150 ms guard) / no label / no matching override →
+  the base mapping fires, exactly as without the section.
+- Override values use the normal entry schema (any key/button action + payload);
+  knob actions can't be overridden (knobs stay universal).
 
 ### Chord syntax (`key`, `turn`, `keys`)
 

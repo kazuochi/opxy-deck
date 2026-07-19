@@ -117,6 +117,15 @@ struct ProfileJ: Codable {
     let app: String?           // human label of the target app
     let chime: String?         // system sound name played when switching to this profile
     let controls: [String: EntryJ]
+    // Per-agent routing (optional). For a profile whose panes host different agents
+    // (herdr multiplexing Claude Code + Codex), `agents` overrides key/button entries
+    // by ACTION NAME when the focused pane's agent label matches:
+    //   "agents": { "codex": { "effort_command": {"action":"type","text":"/model\n"} } }
+    // Detection default is herdr (`pane current` → .result.pane.agent, ~6 ms socket
+    // call); `detect` replaces it with any shell command that prints a bare label.
+    // No herdr / no label / no match → the base mapping fires, exactly as before.
+    var detect: String? = nil
+    var agents: [String: [String: EntryJ]]? = nil
 }
 
 // Legacy v0 schema (mapping.json arrays) — still loads; new features need v1.
@@ -365,6 +374,8 @@ struct RtKnob {
 struct RuntimeMapping {
     var notes: [Int: RtEntry] = [:]
     var buttons: [Int: RtEntry] = [:]
+    var detect: String? = nil                                // custom agent-label command
+    var agentOverrides: [String: [String: RtEntry]] = [:]    // label → action name → entry
     var knobs: [Int: RtKnob] = [:]
     var app: String?
     var chime: String?
@@ -373,7 +384,7 @@ struct RuntimeMapping {
 
 let KNOB_ACTIONS: Set<String> = ["select", "effort", "scroll", "scroll_page", "turn"]
 let BUTTON_ACTIONS: Set<String> = ["ptt", "submit", "esc", "model_picker", "effort_command",
-                                   "thinking_toggle", "shell", "type", "key", "profile_cycle"]
+                                   "thinking_toggle", "shell", "type", "key", "profile_cycle", "nop"]
 // Transport core — invariant verbs across profiles (muscle-memory guard; warning only)
 let CORE_VERBS: [String: String] = ["transport.record": "ptt", "transport.play": "submit", "transport.stop": "esc"]
 
@@ -397,6 +408,60 @@ func loadRuntime(path: String, census: [String: CensusId]) -> LoadResult {
     }
     res.errors.append("cannot parse \(path) as profile (v1) or legacy mapping (v0)")
     return res
+}
+
+// Validate a key/button entry's payload and build its runtime form. Shared by the
+// controls loop and the agents override tables; `name` labels error messages
+// (a control name, or "agents.<label>.<verb>").
+func buildButtonEntry(_ name: String, _ e: EntryJ, _ res: inout LoadResult) -> RtEntry? {
+    if let s = e.style, e.action != "ptt" {
+        res.warnings.append("\(name): \"style\" only applies to action \"ptt\" — ignored on \"\(e.action)\" (got \"\(s)\")")
+    }
+    var chords: [KeyPress] = []
+    switch e.action {
+    case "ptt":
+        if let s = e.style, s != "tap" && s != "hold" {
+            res.errors.append("\(name): ptt style must be \"tap\" or \"hold\", got \"\(s)\"")
+            return nil
+        }
+    case "type":
+        guard let t = e.text, !t.isEmpty else {
+            res.errors.append("\(name): action \"type\" needs \"text\"")
+            return nil
+        }
+        _ = t
+    case "key":
+        let names = e.keys ?? (e.chord.map { [$0] } ?? [])
+        guard !names.isEmpty else {
+            res.errors.append("\(name): action \"key\" needs \"chord\" or \"keys\"")
+            return nil
+        }
+        for n in names {
+            guard let kp = parseChord(n) else {
+                res.errors.append("\(name): unknown key chord \"\(n)\"")
+                return nil
+            }
+            chords.append(kp)
+        }
+    case "shell":
+        guard let c = e.command, !c.isEmpty else {
+            res.errors.append("\(name): action \"shell\" needs \"command\"")
+            return nil
+        }
+    default: break
+    }
+    var rep: (delay: Double, rate: Double)? = nil
+    if e.`repeat` == true {
+        if e.action == "key" || e.action == "type" {
+            rep = (e.repeatDelayMs.map { max(0.05, Double($0) / 1000) } ?? SYS_REPEAT.delay,
+                   e.repeatRateMs.map  { max(0.02, Double($0) / 1000) } ?? SYS_REPEAT.rate)
+        } else {
+            res.warnings.append("\(name): \"repeat\" only applies to actions \"key\"/\"type\" — ignored on \"\(e.action)\"")
+        }
+    }
+    return RtEntry(control: name, action: e.action, text: e.text, chords: chords,
+                   command: e.command, repeatSpec: rep,
+                   pttHold: e.action == "ptt" && e.style == "hold")
 }
 
 func buildRuntime(_ p: ProfileJ, census: [String: CensusId]) -> LoadResult {
@@ -458,62 +523,36 @@ func buildRuntime(_ p: ProfileJ, census: [String: CensusId]) -> LoadResult {
             if name.hasSuffix(".turn") {
                 res.warnings.append("\(name): button action \"\(e.action)\" on an encoder turn — every detent will fire it")
             }
-            if let s = e.style, e.action != "ptt" {
-                res.warnings.append("\(name): \"style\" only applies to action \"ptt\" — ignored on \"\(e.action)\" (got \"\(s)\")")
-            }
-            var chords: [KeyPress] = []
-            switch e.action {
-            case "ptt":
-                if let s = e.style, s != "tap" && s != "hold" {
-                    res.errors.append("\(name): ptt style must be \"tap\" or \"hold\", got \"\(s)\"")
-                    continue
-                }
-            case "type":
-                guard let t = e.text, !t.isEmpty else {
-                    res.errors.append("\(name): action \"type\" needs \"text\"")
-                    continue
-                }
-                _ = t
-            case "key":
-                let names = e.keys ?? (e.chord.map { [$0] } ?? [])
-                guard !names.isEmpty else {
-                    res.errors.append("\(name): action \"key\" needs \"chord\" or \"keys\"")
-                    continue
-                }
-                var ok = true
-                for n in names {
-                    guard let kp = parseChord(n) else {
-                        res.errors.append("\(name): unknown key chord \"\(n)\"")
-                        ok = false
-                        break
-                    }
-                    chords.append(kp)
-                }
-                if !ok { continue }
-            case "shell":
-                guard let c = e.command, !c.isEmpty else {
-                    res.errors.append("\(name): action \"shell\" needs \"command\"")
-                    continue
-                }
-            default: break
-            }
-            var rep: (delay: Double, rate: Double)? = nil
-            if e.`repeat` == true {
-                if e.action == "key" || e.action == "type" {
-                    rep = (e.repeatDelayMs.map { max(0.05, Double($0) / 1000) } ?? SYS_REPEAT.delay,
-                           e.repeatRateMs.map  { max(0.02, Double($0) / 1000) } ?? SYS_REPEAT.rate)
-                } else {
-                    res.warnings.append("\(name): \"repeat\" only applies to actions \"key\"/\"type\" — ignored on \"\(e.action)\"")
-                }
-            }
-            let entry = RtEntry(control: name, action: e.action, text: e.text, chords: chords,
-                                command: e.command, repeatSpec: rep,
-                                pttHold: e.action == "ptt" && e.style == "hold")
+            guard let entry = buildButtonEntry(name, e, &res) else { continue }
             if id.isNote { rt.notes[id.num] = entry } else { rt.buttons[id.num] = entry }
         } else {
             res.errors.append("\(name): unknown action \"\(e.action)\" (knob: \(KNOB_ACTIONS.sorted().joined(separator: "/")); button: \(BUTTON_ACTIONS.sorted().joined(separator: "/")))")
         }
     }
+
+    // Per-agent overrides: label → semantic action name → replacement entry.
+    rt.detect = p.detect
+    for (label, verbs) in (p.agents ?? [:]).sorted(by: { $0.key < $1.key }) {
+        var table: [String: RtEntry] = [:]
+        for (verb, e) in verbs.sorted(by: { $0.key < $1.key }) {
+            let ctx = "agents.\(label).\(verb)"
+            guard BUTTON_ACTIONS.contains(verb) else {
+                res.errors.append("\(ctx): overrides route by key/button action name (\(BUTTON_ACTIONS.sorted().joined(separator: "/")))")
+                continue
+            }
+            guard BUTTON_ACTIONS.contains(e.action) else {
+                res.errors.append("\(ctx): unknown action \"\(e.action)\"")
+                continue
+            }
+            guard let entry = buildButtonEntry(ctx, e, &res) else { continue }
+            table[verb] = entry
+        }
+        if !table.isEmpty { rt.agentOverrides[label] = table }
+    }
+    if p.detect != nil && rt.agentOverrides.isEmpty {
+        res.warnings.append("\"detect\" set but no \"agents\" overrides — detection will never be used")
+    }
+
     res.runtime = res.errors.isEmpty ? rt : nil
     return res
 }
@@ -747,6 +786,8 @@ final class Engine {
             sender.press(parseChord("M-t")!.named("Option+T (thinking toggle)"))
         case "profile_cycle":
             cycleProfile()
+        case "nop":
+            log("nop (\(e.control))")
         default:
             log("unknown action: \(e.action)")
         }
@@ -786,22 +827,72 @@ final class Engine {
         // Short tap: recording keeps running; next tap sends. Both hold and tap-tap styles work.
     }
 
+    // MARK: Per-agent routing
+    //
+    // A press resolves against the focused pane's agent label and the resolution is
+    // pinned until release — so a ptt release always pairs with the entry its press
+    // used, even if pane focus moves mid-hold. Touched only on the stdin thread
+    // (like pttDownAt).
+    private var routedPress: [String: RtEntry] = [:]
+
+    // Focused-pane agent label. Built-in: herdr `pane current` (~6 ms socket call);
+    // PATH is extended because a Finder-launched .app doesn't see /opt/homebrew/bin.
+    // A profile's "detect" replaces it with any command printing a bare label.
+    // 150 ms guard so a wedged detector degrades to the base mapping, not a stuck key.
+    private func detectAgent(_ m: RuntimeMapping) -> String? {
+        let builtin = m.detect == nil
+        let cmd = m.detect ?? "PATH=\"$PATH:/opt/homebrew/bin:/usr/local/bin\" herdr pane current"
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/sh")
+        p.arguments = ["-c", cmd]
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = FileHandle.nullDevice
+        do { try p.run() } catch { return nil }
+        let sem = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async { p.waitUntilExit(); sem.signal() }
+        if sem.wait(timeout: .now() + 0.15) == .timedOut { p.terminate(); return nil }
+        guard let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines), !out.isEmpty else { return nil }
+        if !builtin { return out }
+        guard let obj = try? JSONSerialization.jsonObject(with: Data(out.utf8)) as? [String: Any],
+              let result = obj["result"] as? [String: Any],
+              let pane = result["pane"] as? [String: Any],
+              let agent = pane["agent"] as? String, !agent.isEmpty else { return nil }
+        return agent
+    }
+
+    private func route(_ e: RtEntry, _ m: RuntimeMapping) -> RtEntry {
+        guard !m.agentOverrides.isEmpty else { return e }   // zero cost for single-agent profiles
+        guard let label = detectAgent(m), let o = m.agentOverrides[label]?[e.action] else { return e }
+        log("route: \(label) → \(e.action) ⇒ \(o.action)")
+        return o
+    }
+
     func noteOn(_ note: Int) {
-        guard let e = current().notes[note] else { return }
+        let m = current()
+        guard let base = m.notes[note] else { return }
+        let e = route(base, m)
+        routedPress["note\(note)"] = e
         press(e, id: "note\(note)")
     }
 
     func noteOff(_ note: Int) {
-        guard let e = current().notes[note] else { return }
-        release(e, id: "note\(note)")
+        guard let base = current().notes[note] else { return }
+        release(routedPress.removeValue(forKey: "note\(note)") ?? base, id: "note\(note)")
     }
 
     func controlChange(_ cc: Int, _ value: Int) {
         let m = current()
         // Momentary CC button (transport keys): 127 = press, 0 = release.
-        if let e = m.buttons[cc] {
-            if value >= 64 { press(e, id: "cc\(cc)") }
-            else { release(e, id: "cc\(cc)") }
+        if let base = m.buttons[cc] {
+            if value >= 64 {
+                let e = route(base, m)
+                routedPress["cc\(cc)"] = e
+                press(e, id: "cc\(cc)")
+            } else {
+                release(routedPress.removeValue(forKey: "cc\(cc)") ?? base, id: "cc\(cc)")
+            }
             return
         }
         guard let knob = m.knobs[cc] else { return }

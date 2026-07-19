@@ -46,6 +46,9 @@ struct ProfileEntryJ: Codable {
 }
 struct ProfileFileJ: Codable {
     let app: String?; let chime: String?; var controls: [String: ProfileEntryJ]
+    // per-agent routing (bridge feature; GUI doesn't edit, MUST carry — see ProfileEntryJ note)
+    var detect: String? = nil
+    var agents: [String: [String: ProfileEntryJ]]? = nil
 }
 struct DeckStateJ: Codable { var active: String? }
 
@@ -412,6 +415,8 @@ final class Store: ObservableObject {
     @Published var profileName = "claude-code"
     var profileApp: String?
     var profileChime: String?
+    var profileDetect: String?                             // agent-routing sections — carried, not edited
+    var profileAgents: [String: [String: ProfileEntryJ]]?
     var rawEntries: [String: ProfileEntryJ] = [:]   // full decoded entry per owned slot (keeps payloads the GUI doesn't edit)
     var preserved: [String: ProfileEntryJ] = [:]    // entries we can't own (unknown control names/identities)
 
@@ -523,12 +528,14 @@ final class Store: ObservableObject {
     func loadProfile() {
         assigns = [:]; rawEntries = [:]; preserved = [:]
         profileApp = nil; profileChime = nil
+        profileDetect = nil; profileAgents = nil
         dirty = false
         let url = profileURL(profileName)
         lastSeenProfile = try? Data(contentsOf: url)
         if let d = lastSeenProfile,
            let p = try? JSONDecoder().decode(ProfileFileJ.self, from: d) {
             profileApp = p.app; profileChime = p.chime
+            profileDetect = p.detect; profileAgents = p.agents
             for (name, e) in p.controls {
                 let resolved: String? = {
                     if idents[name] != nil { return name }          // census-named entry
@@ -804,7 +811,8 @@ final class Store: ObservableObject {
         let enc = JSONEncoder(); enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         do {
             let data = try enc.encode(
-                ProfileFileJ(app: profileApp, chime: profileChime, controls: controls))
+                ProfileFileJ(app: profileApp, chime: profileChime, controls: controls,
+                             detect: profileDetect, agents: profileAgents))
             try data.write(to: url)
             lastSeenProfile = data      // our own bytes — the watcher must not re-read this as foreign
             saveIdents()

@@ -136,8 +136,14 @@ verbs): **steps 1–4** = focus pane left/down/up/right (h j k l), **step 5** =
 zoom toggle, **step 6** = spawn a new Claude agent in a right split,
 **step 16** = cycle back to the claude-code profile. Everything else hits the
 focused pane — and the core vocabulary is agent-agnostic: submit/interrupt/
-arrows/`/model` work in both Claude Code and Codex panes. (Claude-only:
-dictation and the thinking toggle — near-no-ops in a Codex pane.)
+arrows/`/model` work in both Claude Code and Codex panes.
+
+Keys that *do* differ per agent are *routed*: the profile's `agents` section
+asks herdr which agent runs in the focused pane (~6 ms, per press) and swaps
+the action — in a Codex pane the effort key opens `/model` (where Codex keeps
+effort), the thinking key no-ops (no equivalent), and the record key switches
+to hold-style dictation (Codex is hold-to-dictate). No herdr running → base
+mapping, unchanged. Schema: `MAPPING-SCHEMA.md` §Per-agent routing.
 
 Audible status: `make watch` chimes when any herdr-detected agent blocks or
 finishes (→ blocked = urgent, → done = soft). Works for every agent herdr
@@ -229,5 +235,5 @@ roadmap, untested. Voice is desk-only always (it records the Mac's mic).
 `opxy-bridge.swift` (engine, dep-free) · `OpxyMapper.swift` (GUI) ·
 `profiles/` (bundled mappings) · `opxy-controls.json` (census) ·
 `MAPPING-SCHEMA.md` (schema truth) · `skills/deck/` (agent skill) ·
-`selftest.sh` (41 assertions, no device needed) · `doctor.sh` (preflight) ·
+`selftest.sh` (47 assertions, no device needed) · `doctor.sh` (preflight) ·
 `miditest.swift` (virtual MIDI source for device-free testing)

@@ -174,6 +174,41 @@ EOF
 OUT=$(./opxy-bridge --check "$TD/stylewarn.json" 2>&1); RC=$?
 check "style on wrong action warns, passes" "[ $RC = 0 ] && grep -q 'only applies' <<< \"\$OUT\""
 
+echo "— per-agent routing (agents / detect / nop)"
+cat > "$OPXY_CONFIG_DIR/profiles/route.json" <<'EOF'
+{
+  "detect": "echo codex",
+  "controls": {
+    "transport.play": { "action": "submit" },
+    "transport.stop": { "action": "esc" },
+    "kb.b1":          { "action": "nop" }
+  },
+  "agents": {
+    "codex": { "submit": { "action": "type", "text": "routed" } }
+  }
+}
+EOF
+./opxy-bridge --check route >/dev/null 2>&1 && ok "agents section validates" || bad "agents section validates"
+./opxy-bridge --use route >/dev/null 2>&1
+RTLOG="$TD/route.log"
+printf 'channel 1 control-change 56 127\nchannel 1 control-change 56 0\nchannel 1 note-on 56 100\nchannel 1 note-off 56 0\n' | ./opxy-bridge --dry-run > "$RTLOG" 2>&1
+check "override routes by agent label" "grep -q 'route: codex' '$RTLOG' && grep -q 'type \"routed\"' '$RTLOG' && ! grep -q '\[dry\] Enter' '$RTLOG'"
+check "nop logs, sends nothing"        "grep -q 'nop (kb.b1)' '$RTLOG'"
+# detector fails → base mapping fires (today's behavior)
+sed -i '' 's/echo codex/false/' "$OPXY_CONFIG_DIR/profiles/route.json"
+printf 'channel 1 control-change 56 127\nchannel 1 control-change 56 0\n' | ./opxy-bridge --dry-run > "$RTLOG" 2>&1
+check "failed detect falls back to base" "grep -q '\[dry\] Enter' '$RTLOG' && ! grep -q 'route:' '$RTLOG'"
+cat > "$TD/badroute.json" <<'EOF'
+{ "controls": { "transport.play": { "action": "submit" } },
+  "agents": { "codex": { "select": { "action": "esc" } } } }
+EOF
+./opxy-bridge --check "$TD/badroute.json" >/dev/null 2>&1 && bad "knob verb in agents rejected" || ok "knob verb in agents rejected"
+cat > "$TD/badroute2.json" <<'EOF'
+{ "controls": { "transport.play": { "action": "submit" } },
+  "agents": { "codex": { "submit": { "action": "warp" } } } }
+EOF
+./opxy-bridge --check "$TD/badroute2.json" >/dev/null 2>&1 && bad "unknown override action rejected" || ok "unknown override action rejected"
+
 echo "— --migrate legacy → v1"
 ./opxy-bridge --migrate mapping.json "$TD/migrated.json" >/dev/null 2>&1 && ok "migrate runs" || bad "migrate runs"
 ./opxy-bridge --check "$TD/migrated.json" >/dev/null 2>&1 && ok "migrated profile validates" || bad "migrated profile validates"
