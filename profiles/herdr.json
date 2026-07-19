@@ -79,24 +79,22 @@
       "text" : "\/"
     },
     "kb.w12" : {
-      "action" : "type",
-      "label" : "kb.w12 → \/effort",
-      "text" : "\/effort\n"
+      "action" : "effort_command",
+      "label" : "kb.w12 → /effort (routes per agent)"
     },
     "kb.w13" : {
-      "action" : "type",
-      "label" : "kb.w13 → \/model",
-      "text" : "\/model\n"
+      "action" : "model_picker",
+      "label" : "kb.w13 → /model (routes per agent)"
     },
     "key_minus" : {
       "action" : "shell",
-      "command" : "/usr/bin/osascript -e 'tell application \"System Events\"' -e 'keystroke \"/effort\"' -e 'delay 0.15' -e 'key code 36' -e 'delay 0.5' -e 'key code 123' -e 'delay 0.15' -e 'key code 36' -e 'end tell'",
-      "label" : "minus → /effort, Left, Enter (lower effort, paced)"
+      "command" : "p=$(herdr pane current | jq -r '.result.pane.pane_id // empty'); [ -n \"$p\" ] || exit 0; a=$(herdr pane current | jq -r '.result.pane.agent // empty'); [ \"$a\" = \"claude\" ] || exit 0; herdr pane send-text \"$p\" '/effort'; sleep 0.3; herdr pane send-keys \"$p\" enter; sleep 0.5; herdr pane send-keys \"$p\" left; sleep 0.15; herdr pane send-keys \"$p\" enter",
+      "label" : "minus → /effort, Left, Enter via herdr socket (lower effort; claude panes only)"
     },
     "key_plus" : {
       "action" : "shell",
-      "command" : "/usr/bin/osascript -e 'tell application \"System Events\"' -e 'keystroke \"/effort\"' -e 'delay 0.15' -e 'key code 36' -e 'delay 0.5' -e 'key code 124' -e 'delay 0.15' -e 'key code 36' -e 'end tell'",
-      "label" : "plus → /effort, Right, Enter (raise effort, paced)"
+      "command" : "p=$(herdr pane current | jq -r '.result.pane.pane_id // empty'); [ -n \"$p\" ] || exit 0; a=$(herdr pane current | jq -r '.result.pane.agent // empty'); [ \"$a\" = \"claude\" ] || exit 0; herdr pane send-text \"$p\" '/effort'; sleep 0.3; herdr pane send-keys \"$p\" enter; sleep 0.5; herdr pane send-keys \"$p\" right; sleep 0.15; herdr pane send-keys \"$p\" enter",
+      "label" : "plus → /effort, Right, Enter via herdr socket (raise effort; claude panes only)"
     },
     "mod10" : {
       "action" : "shell",
