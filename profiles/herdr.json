@@ -56,19 +56,25 @@
       "action" : "type",
       "text" : "\/"
     },
-    "kb.w11" : {
-      "action" : "thinking_toggle",
-      "label" : "kb.w11 → thinking toggle (Option+T, not a slash command)"
-    },
     "kb.w12" : {
       "action" : "type",
-      "text" : "/effort\n",
-      "label" : "kb.w12 → /effort"
+      "label" : "kb.w12 → \/effort",
+      "text" : "\/effort\n"
     },
     "kb.w13" : {
       "action" : "type",
-      "text" : "/model\n",
-      "label" : "kb.w13 → /model"
+      "label" : "kb.w13 → \/model",
+      "text" : "\/model\n"
+    },
+    "key_minus" : {
+      "action" : "key",
+      "keys" : ["/", "e", "f", "f", "o", "r", "t", "Enter", "Left"],
+      "label" : "minus → /effort then Left (lower effort)"
+    },
+    "key_plus" : {
+      "action" : "key",
+      "keys" : ["/", "e", "f", "f", "o", "r", "t", "Enter", "Right"],
+      "label" : "plus → /effort then Right (raise effort)"
     },
     "mod10" : {
       "action" : "shell",
