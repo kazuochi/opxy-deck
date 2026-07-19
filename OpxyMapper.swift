@@ -82,7 +82,12 @@ let ART_W: CGFloat = 741, ART_H: CGFloat = 265
 let GRID_X0 = 12.06, GRID_COL = 39.797
 let GRID_ROWY: [Double] = [11.77, 51.80, 91.61, 131.42, 171.21, 211.01, 250.81]
 
-let KEY_ACTIONS = ["none", "ptt", "submit", "esc", "model_picker", "effort_command", "thinking_toggle", "shell", "type", "key", "profile_cycle"]
+// Dropdown groups. General = works in any app; Claude = Claude Code semantics.
+// Commands/skills are presentation-only tags over plain type entries (see displayAction).
+let GENERAL_ACTIONS = ["none", "type", "key", "shell", "submit", "esc", "profile_cycle"]
+let CLAUDE_ACTIONS = ["ptt", "model_picker", "effort_command", "thinking_toggle"]
+let KEY_ACTIONS = GENERAL_ACTIONS + CLAUDE_ACTIONS   // engine vocabulary, unchanged
+let BUILTIN_COMMANDS = ["compact", "clear", "resume"]  // common Claude Code slash commands
 let KNOB_ACTIONS = ["none", "select", "effort", "scroll", "scroll_page"]  // "turn" (cw/ccw chords) is agent/JSON-only for now
 let KEYBOARD_BASE_DEFAULT = 53  // leftmost white key = F, learned 2026-07-15
 
@@ -710,12 +715,17 @@ final class Store: ObservableObject {
     // /deck agents see an ordinary type entry; the dropdown just renders it back
     // as the skill when the name still matches an installed skill.
     @Published var userSkills: [String] = []
+    @Published var userCommands: [String] = []   // builtins + ~/.claude/commands/*.md
     func scanSkills() {
-        let root = NSHomeDirectory() + "/.claude/skills"
         let fm = FileManager.default
-        userSkills = ((try? fm.contentsOfDirectory(atPath: root)) ?? [])
-            .filter { fm.fileExists(atPath: root + "/" + $0 + "/SKILL.md") }
+        let skillRoot = NSHomeDirectory() + "/.claude/skills"
+        userSkills = ((try? fm.contentsOfDirectory(atPath: skillRoot)) ?? [])
+            .filter { fm.fileExists(atPath: skillRoot + "/" + $0 + "/SKILL.md") }
             .sorted()
+        let cmdRoot = NSHomeDirectory() + "/.claude/commands"
+        let custom = ((try? fm.contentsOfDirectory(atPath: cmdRoot)) ?? [])
+            .filter { $0.hasSuffix(".md") }.map { String($0.dropLast(3)) }
+        userCommands = Array(Set(BUILTIN_COMMANDS + custom)).sorted()
     }
 
     func installSkill() {
@@ -1018,33 +1028,49 @@ struct DetailPanel: View {
                         get: { store.assigns[effSlot] ?? Assign() },
                         set: { store.assigns[effSlot] = $0; store.markDirty() }
                     )
-                    // Selection is a view-layer string: plain actions pass through; a
-                    // "skill:<name>" choice writes Assign(type, "/<name>\n") and a type
-                    // entry whose text is "/<installed skill>\n" displays as that skill.
+                    // Selection is a view-layer string: plain actions pass through;
+                    // "skill:<n>" / "cmd:<n>" choices write Assign(type, "/<n>\n"), and a
+                    // type entry whose text is "/<known name>\n" displays back under its
+                    // group (skills win a name clash). The stored schema stays plain type.
                     let displayAction = Binding<String>(
                         get: {
                             let a = binding.wrappedValue
                             if a.action == "type", a.command.hasPrefix("/"), a.command.hasSuffix("\n") {
                                 let name = String(a.command.dropFirst().dropLast())
                                 if store.userSkills.contains(name) { return "skill:" + name }
+                                if store.userCommands.contains(name) { return "cmd:" + name }
                             }
                             return a.action
                         },
                         set: { v in
                             var a = binding.wrappedValue
-                            if v.hasPrefix("skill:") {
-                                a.action = "type"; a.command = "/" + v.dropFirst(6) + "\n"
+                            if let name = v.split(separator: ":", maxSplits: 1).last,
+                               v.hasPrefix("skill:") || v.hasPrefix("cmd:") {
+                                a.action = "type"; a.command = "/" + name + "\n"
                             } else {
                                 a.action = v
                             }
                             binding.wrappedValue = a
                         })
                     Picker("action", selection: displayAction) {
-                        ForEach(isTurn ? KNOB_ACTIONS : KEY_ACTIONS, id: \.self) { Text($0) }
-                        if !isTurn && !store.userSkills.isEmpty {
-                            Divider()
-                            ForEach(store.userSkills, id: \.self) { s in
-                                Text("/" + s).tag("skill:" + s)
+                        if isTurn {
+                            ForEach(KNOB_ACTIONS, id: \.self) { Text($0) }
+                        } else {
+                            Section("general") {
+                                ForEach(GENERAL_ACTIONS, id: \.self) { Text($0) }
+                            }
+                            Section("claude code") {
+                                ForEach(CLAUDE_ACTIONS, id: \.self) { Text($0) }
+                            }
+                            Section("commands") {
+                                ForEach(store.userCommands, id: \.self) { c in
+                                    Text("/" + c).tag("cmd:" + c)
+                                }
+                            }
+                            Section("skills") {
+                                ForEach(store.userSkills, id: \.self) { s in
+                                    Text("/" + s).tag("skill:" + s)
+                                }
                             }
                         }
                     }
