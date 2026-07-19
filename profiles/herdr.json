@@ -89,34 +89,14 @@
       "text" : "\/model\n"
     },
     "key_minus" : {
-      "action" : "key",
-      "keys" : [
-        "\/",
-        "e",
-        "f",
-        "f",
-        "o",
-        "r",
-        "t",
-        "Enter",
-        "Left"
-      ],
-      "label" : "minus → \/effort then Left (lower effort)"
+      "action" : "shell",
+      "command" : "/usr/bin/osascript -e 'tell application \"System Events\"' -e 'keystroke \"/effort\"' -e 'delay 0.15' -e 'key code 36' -e 'delay 0.5' -e 'key code 123' -e 'delay 0.15' -e 'key code 36' -e 'end tell'",
+      "label" : "minus → /effort, Left, Enter (lower effort, paced)"
     },
     "key_plus" : {
-      "action" : "key",
-      "keys" : [
-        "\/",
-        "e",
-        "f",
-        "f",
-        "o",
-        "r",
-        "t",
-        "Enter",
-        "Right"
-      ],
-      "label" : "plus → \/effort then Right (raise effort)"
+      "action" : "shell",
+      "command" : "/usr/bin/osascript -e 'tell application \"System Events\"' -e 'keystroke \"/effort\"' -e 'delay 0.15' -e 'key code 36' -e 'delay 0.5' -e 'key code 124' -e 'delay 0.15' -e 'key code 36' -e 'end tell'",
+      "label" : "plus → /effort, Right, Enter (raise effort, paced)"
     },
     "mod10" : {
       "action" : "shell",
