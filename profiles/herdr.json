@@ -58,15 +58,17 @@
     },
     "kb.w11" : {
       "action" : "thinking_toggle",
-      "label" : "white key 12 → thinking_toggle (commands group)"
+      "label" : "kb.w11 → thinking toggle (Option+T, not a slash command)"
     },
     "kb.w12" : {
-      "action" : "effort_command",
-      "label" : "white key 13 → effort_command (commands group)"
+      "action" : "type",
+      "text" : "/effort\n",
+      "label" : "kb.w12 → /effort"
     },
     "kb.w13" : {
-      "action" : "model_picker",
-      "label" : "white key 14 → model_picker (commands group)"
+      "action" : "type",
+      "text" : "/model\n",
+      "label" : "kb.w13 → /model"
     },
     "mod10" : {
       "action" : "shell",
