@@ -1052,29 +1052,41 @@ struct DetailPanel: View {
                             }
                             binding.wrappedValue = a
                         })
-                    Picker("action", selection: displayAction) {
+                    // Columns-style menu: groups are submenus that expand on hover.
+                    let current = displayAction.wrappedValue
+                    let currentLabel = current.hasPrefix("skill:") ? "/" + current.dropFirst(6)
+                                     : current.hasPrefix("cmd:")   ? "/" + current.dropFirst(4)
+                                     : current
+                    let item = { (label: String, tag: String) -> AnyView in
+                        AnyView(Button((tag == current ? "✓ " : "") + label) {
+                            displayAction.wrappedValue = tag
+                        })
+                    }
+                    Menu {
                         if isTurn {
-                            ForEach(KNOB_ACTIONS, id: \.self) { Text($0) }
+                            ForEach(KNOB_ACTIONS, id: \.self) { a in item(a, a) }
                         } else {
-                            Section("general") {
-                                ForEach(GENERAL_ACTIONS, id: \.self) { Text($0) }
+                            Menu("general") {
+                                ForEach(GENERAL_ACTIONS, id: \.self) { a in item(a, a) }
                             }
-                            Section("claude code") {
-                                ForEach(CLAUDE_ACTIONS, id: \.self) { Text($0) }
+                            Menu("claude code") {
+                                ForEach(CLAUDE_ACTIONS, id: \.self) { a in item(a, a) }
                             }
-                            Section("commands") {
-                                ForEach(store.userCommands, id: \.self) { c in
-                                    Text("/" + c).tag("cmd:" + c)
+                            if !store.userCommands.isEmpty {
+                                Menu("commands") {
+                                    ForEach(store.userCommands, id: \.self) { c in item("/" + c, "cmd:" + c) }
                                 }
                             }
-                            Section("skills") {
-                                ForEach(store.userSkills, id: \.self) { s in
-                                    Text("/" + s).tag("skill:" + s)
+                            if !store.userSkills.isEmpty {
+                                Menu("skills") {
+                                    ForEach(store.userSkills, id: \.self) { s in item("/" + s, "skill:" + s) }
                                 }
                             }
                         }
+                    } label: {
+                        Text(currentLabel).frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(width: 230)
+                    .frame(width: 180)
                     if ["shell", "type", "key"].contains(binding.wrappedValue.action) {
                         TextField(binding.wrappedValue.action == "shell" ? "shell command…"
                                   : binding.wrappedValue.action == "type" ? "text to type… (\\n = Enter)"
