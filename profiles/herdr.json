@@ -8,7 +8,6 @@
     },
     "enc1.turn" : {
       "action" : "select",
-      "invert" : true,
       "label" : "encoder 1 turn → select",
       "mode" : "absolute"
     },
@@ -43,22 +42,86 @@
       "action" : "thinking_toggle",
       "label" : "key ÷ → thinking_toggle"
     },
-    "transport.play" : {
-      "action" : "submit",
-      "label" : "play → submit"
+    "mod10" : {
+      "action" : "shell",
+      "cc" : 20,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[1].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 2 → herdr tab 2"
     },
-    "transport.record" : {
-      "action" : "ptt",
-      "label" : "record → ptt"
+    "mod11" : {
+      "action" : "shell",
+      "cc" : 21,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[2].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 3 → herdr tab 3"
     },
-    "transport.stop" : {
-      "action" : "esc",
-      "label" : "stop → esc"
+    "mod12" : {
+      "action" : "shell",
+      "cc" : 22,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[3].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 4 → herdr tab 4"
+    },
+    "mod13" : {
+      "action" : "shell",
+      "cc" : 23,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[4].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 5 → herdr tab 5"
+    },
+    "mod14" : {
+      "action" : "shell",
+      "cc" : 24,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[5].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 6 → herdr tab 6"
+    },
+    "mod15" : {
+      "action" : "shell",
+      "cc" : 25,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[6].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 7 → herdr tab 7"
+    },
+    "mod16" : {
+      "action" : "shell",
+      "cc" : 26,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[7].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 8 → herdr tab 8"
+    },
+    "mod5" : {
+      "action" : "shell",
+      "cc" : 11,
+      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==1).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
+      "label" : "space 1 → herdr workspace 1 (nop if absent)"
+    },
+    "mod6" : {
+      "action" : "shell",
+      "cc" : 12,
+      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==2).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
+      "label" : "space 2 → herdr workspace 2"
+    },
+    "mod7" : {
+      "action" : "shell",
+      "cc" : 13,
+      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==3).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
+      "label" : "space 3 → herdr workspace 3"
+    },
+    "mod8" : {
+      "action" : "shell",
+      "cc" : 14,
+      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==4).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
+      "label" : "space 4 → herdr workspace 4"
+    },
+    "mod9" : {
+      "action" : "shell",
+      "cc" : 19,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[0].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 1 → herdr tab 1 (focused workspace, nop if absent)"
     },
     "step1" : {
       "action" : "shell",
       "command" : "herdr pane focus --direction left",
       "label" : "step 1 → herdr focus left (h)"
+    },
+    "step16" : {
+      "action" : "profile_cycle",
+      "label" : "step 16 → cycle profile (back to claude-code)"
     },
     "step2" : {
       "action" : "shell",
@@ -85,81 +148,17 @@
       "command" : "herdr agent start \"claude-$(date +%H%M%S)\" --split right --focus -- claude",
       "label" : "step 6 → new Claude agent in right split"
     },
-    "step16" : {
-      "action" : "profile_cycle",
-      "label" : "step 16 → cycle profile (back to claude-code)"
+    "transport.play" : {
+      "action" : "submit",
+      "label" : "play → submit"
     },
-    "space1" : {
-      "cc" : 11,
-      "action" : "shell",
-      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==1).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
-      "label" : "space 1 → herdr workspace 1 (nop if absent)"
+    "transport.record" : {
+      "action" : "ptt",
+      "label" : "record → ptt"
     },
-    "space2" : {
-      "cc" : 12,
-      "action" : "shell",
-      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==2).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
-      "label" : "space 2 → herdr workspace 2"
-    },
-    "space3" : {
-      "cc" : 13,
-      "action" : "shell",
-      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==3).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
-      "label" : "space 3 → herdr workspace 3"
-    },
-    "space4" : {
-      "cc" : 14,
-      "action" : "shell",
-      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==4).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
-      "label" : "space 4 → herdr workspace 4"
-    },
-    "track1" : {
-      "cc" : 19,
-      "action" : "shell",
-      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[]|select(.number==1).tab_id'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label" : "track 1 → herdr tab 1 (focused workspace, nop if absent)"
-    },
-    "track2" : {
-      "cc" : 20,
-      "action" : "shell",
-      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[]|select(.number==2).tab_id'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label" : "track 2 → herdr tab 2"
-    },
-    "track3" : {
-      "cc" : 21,
-      "action" : "shell",
-      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[]|select(.number==3).tab_id'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label" : "track 3 → herdr tab 3"
-    },
-    "track4" : {
-      "cc" : 22,
-      "action" : "shell",
-      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[]|select(.number==4).tab_id'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label" : "track 4 → herdr tab 4"
-    },
-    "track5" : {
-      "cc" : 23,
-      "action" : "shell",
-      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[]|select(.number==5).tab_id'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label" : "track 5 → herdr tab 5"
-    },
-    "track6" : {
-      "cc" : 24,
-      "action" : "shell",
-      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[]|select(.number==6).tab_id'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label" : "track 6 → herdr tab 6"
-    },
-    "track7" : {
-      "cc" : 25,
-      "action" : "shell",
-      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[]|select(.number==7).tab_id'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label" : "track 7 → herdr tab 7"
-    },
-    "track8" : {
-      "cc" : 26,
-      "action" : "shell",
-      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[]|select(.number==8).tab_id'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label" : "track 8 → herdr tab 8"
+    "transport.stop" : {
+      "action" : "esc",
+      "label" : "stop → esc"
     }
   }
 }
