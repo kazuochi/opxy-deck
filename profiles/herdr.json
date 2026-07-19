@@ -214,7 +214,8 @@
     },
     "transport.record" : {
       "action" : "ptt",
-      "label" : "record → ptt"
+      "label" : "record → ptt (hold style — pairs with /voice hold)",
+      "style" : "hold"
     },
     "transport.stop" : {
       "action" : "esc",
