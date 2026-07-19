@@ -19,6 +19,10 @@ Run all `make` / `./opxy-bridge` commands from the repo root.
 truth for file locations, the profile schema, census control names, actions,
 payloads, and chord syntax. Do not rely on memory of the schema; read it.
 
+**Working on the herdr profile?** Read `herdr.md` in this skill's directory —
+verified herdr CLI verbs, default keybindings (prefix `C-b`), and
+herdr-specific mapping facts.
+
 ## Core loop (single mapping change)
 
 1. **Resolve the control name.** Census names live in `opxy-controls.json`
