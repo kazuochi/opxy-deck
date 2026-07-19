@@ -646,6 +646,7 @@ final class Store: ObservableObject {
 
     func pollExternalChanges() {
         axTrusted = AXIsProcessTrusted()
+        checkSkill()   // skill installs/removals show up in the dropdown live
 
         // Someone switched the active profile (agent, `make use`, another GUI).
         let active = readActiveName()
@@ -700,6 +701,21 @@ final class Store: ObservableObject {
 
     func checkSkill() {
         skillLinked = (try? FileManager.default.destinationOfSymbolicLink(atPath: skillLink)) == skillTarget
+        scanSkills()
+    }
+
+    // The user's Claude Code skills (~/.claude/skills/*/SKILL.md), offered in the
+    // action dropdown as "/name". A skill key is stored as plain
+    // {"action":"type","text":"/name\n"} — no schema extension, so the bridge and
+    // /deck agents see an ordinary type entry; the dropdown just renders it back
+    // as the skill when the name still matches an installed skill.
+    @Published var userSkills: [String] = []
+    func scanSkills() {
+        let root = NSHomeDirectory() + "/.claude/skills"
+        let fm = FileManager.default
+        userSkills = ((try? fm.contentsOfDirectory(atPath: root)) ?? [])
+            .filter { fm.fileExists(atPath: root + "/" + $0 + "/SKILL.md") }
+            .sorted()
     }
 
     func installSkill() {
@@ -1002,8 +1018,35 @@ struct DetailPanel: View {
                         get: { store.assigns[effSlot] ?? Assign() },
                         set: { store.assigns[effSlot] = $0; store.markDirty() }
                     )
-                    Picker("action", selection: binding.action) {
+                    // Selection is a view-layer string: plain actions pass through; a
+                    // "skill:<name>" choice writes Assign(type, "/<name>\n") and a type
+                    // entry whose text is "/<installed skill>\n" displays as that skill.
+                    let displayAction = Binding<String>(
+                        get: {
+                            let a = binding.wrappedValue
+                            if a.action == "type", a.command.hasPrefix("/"), a.command.hasSuffix("\n") {
+                                let name = String(a.command.dropFirst().dropLast())
+                                if store.userSkills.contains(name) { return "skill:" + name }
+                            }
+                            return a.action
+                        },
+                        set: { v in
+                            var a = binding.wrappedValue
+                            if v.hasPrefix("skill:") {
+                                a.action = "type"; a.command = "/" + v.dropFirst(6) + "\n"
+                            } else {
+                                a.action = v
+                            }
+                            binding.wrappedValue = a
+                        })
+                    Picker("action", selection: displayAction) {
                         ForEach(isTurn ? KNOB_ACTIONS : KEY_ACTIONS, id: \.self) { Text($0) }
+                        if !isTurn && !store.userSkills.isEmpty {
+                            Divider()
+                            ForEach(store.userSkills, id: \.self) { s in
+                                Text("/" + s).tag("skill:" + s)
+                            }
+                        }
                     }
                     .frame(width: 230)
                     if ["shell", "type", "key"].contains(binding.wrappedValue.action) {
