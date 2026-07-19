@@ -51,28 +51,28 @@
     },
     "kb.b0" : {
       "action" : "type",
-      "text" : "1",
-      "label" : "black key 1 → types 1 (answer selection)"
+      "label" : "black key 1 → types 1 (answer selection)",
+      "text" : "1"
     },
     "kb.b1" : {
       "action" : "type",
-      "text" : "2",
-      "label" : "black key 2 → types 2"
+      "label" : "black key 2 → types 2",
+      "text" : "2"
     },
     "kb.b2" : {
       "action" : "type",
-      "text" : "3",
-      "label" : "black key 3 → types 3"
+      "label" : "black key 3 → types 3",
+      "text" : "3"
     },
     "kb.b3" : {
       "action" : "type",
-      "text" : "4",
-      "label" : "black key 4 → types 4"
+      "label" : "black key 4 → types 4",
+      "text" : "4"
     },
     "kb.b4" : {
       "action" : "type",
-      "text" : "5",
-      "label" : "black key 5 → types 5"
+      "label" : "black key 5 → types 5",
+      "text" : "5"
     },
     "kb.w0" : {
       "action" : "type",
@@ -183,6 +183,51 @@
       "action" : "profile_cycle",
       "label" : "step 16 → cycle profile (back to claude-code)"
     },
+    "step7" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[0].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 7 → agent 1 (sidebar order, nop if absent)"
+    },
+    "step8" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[1].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 8 → agent 2"
+    },
+    "step9" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[2].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 9 → agent 3"
+    },
+    "step10" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[3].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 10 → agent 4"
+    },
+    "step11" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[4].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 11 → agent 5"
+    },
+    "step12" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[5].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 12 → agent 6"
+    },
+    "step13" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[6].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 13 → agent 7"
+    },
+    "step14" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[7].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 14 → agent 8"
+    },
+    "step15" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[8].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 15 → agent 9"
+    },
     "step2" : {
       "action" : "shell",
       "command" : "herdr pane focus --direction down",
@@ -214,7 +259,7 @@
     },
     "transport.record" : {
       "action" : "ptt",
-      "label" : "record → ptt (hold style — pairs with /voice hold)",
+      "label" : "record → ptt (hold style — pairs with \/voice hold)",
       "style" : "hold"
     },
     "transport.stop" : {
