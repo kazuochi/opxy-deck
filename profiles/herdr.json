@@ -3,8 +3,8 @@
     "codex" : {
       "effort_command" : {
         "action" : "type",
-        "label" : "codex: effort lives inside /model",
-        "text" : "/model\n"
+        "label" : "codex: effort lives inside \/model",
+        "text" : "\/model\n"
       },
       "ptt" : {
         "action" : "ptt",
@@ -50,51 +50,57 @@
       "mode" : "absolute"
     },
     "kb.b0" : {
-      "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[0].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label" : "black key 1 (note 54) → herdr agent 1 (nop if absent)"
+      "action" : "type",
+      "text" : "1",
+      "label" : "black key 1 → types 1 (answer selection)"
     },
     "kb.b1" : {
-      "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[1].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label" : "black key 2 (note 56) → herdr agent 2"
+      "action" : "type",
+      "text" : "2",
+      "label" : "black key 2 → types 2"
     },
     "kb.b2" : {
-      "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[2].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label" : "black key 3 (note 58) → herdr agent 3"
+      "action" : "type",
+      "text" : "3",
+      "label" : "black key 3 → types 3"
     },
     "kb.b3" : {
-      "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[3].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label" : "black key 4 (note 61) → herdr agent 4"
+      "action" : "type",
+      "text" : "4",
+      "label" : "black key 4 → types 4"
     },
     "kb.b4" : {
-      "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[4].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label" : "black key 5 (note 63) → herdr agent 5"
+      "action" : "type",
+      "text" : "5",
+      "label" : "black key 5 → types 5"
     },
     "kb.w0" : {
       "action" : "type",
       "text" : "\/"
     },
     "kb.w12" : {
-      "action" : "effort_command",
-      "label" : "kb.w12 → /effort (routes per agent)"
+      "action" : "type",
+      "label" : "kb.w12 → \/effort",
+      "text" : "\/effort\n"
     },
     "kb.w13" : {
-      "action" : "model_picker",
-      "label" : "kb.w13 → /model (routes per agent)"
+      "action" : "type",
+      "label" : "kb.w13 → \/model",
+      "text" : "\/model\n"
+    },
+    "key_com" : {
+      "action" : "key",
+      "chord" : "Backspace"
     },
     "key_minus" : {
       "action" : "shell",
-      "command" : "p=$(herdr pane current | jq -r '.result.pane.pane_id // empty'); [ -n \"$p\" ] || exit 0; a=$(herdr pane current | jq -r '.result.pane.agent // empty'); [ \"$a\" = \"claude\" ] || exit 0; herdr pane send-text \"$p\" '/effort'; sleep 0.3; herdr pane send-keys \"$p\" enter; sleep 0.5; herdr pane send-keys \"$p\" left; sleep 0.15; herdr pane send-keys \"$p\" enter",
-      "label" : "minus → /effort, Left, Enter via herdr socket (lower effort; claude panes only)"
+      "command" : "\/usr\/bin\/osascript -e 'tell application \"System Events\"' -e 'keystroke \"\/effort\"' -e 'delay 0.15' -e 'key code 36' -e 'delay 0.5' -e 'key code 123' -e 'delay 0.15' -e 'key code 36' -e 'end tell'",
+      "label" : "minus → \/effort, Left, Enter (lower effort, paced)"
     },
     "key_plus" : {
       "action" : "shell",
-      "command" : "p=$(herdr pane current | jq -r '.result.pane.pane_id // empty'); [ -n \"$p\" ] || exit 0; a=$(herdr pane current | jq -r '.result.pane.agent // empty'); [ \"$a\" = \"claude\" ] || exit 0; herdr pane send-text \"$p\" '/effort'; sleep 0.3; herdr pane send-keys \"$p\" enter; sleep 0.5; herdr pane send-keys \"$p\" right; sleep 0.15; herdr pane send-keys \"$p\" enter",
-      "label" : "plus → /effort, Right, Enter via herdr socket (raise effort; claude panes only)"
+      "command" : "\/usr\/bin\/osascript -e 'tell application \"System Events\"' -e 'keystroke \"\/effort\"' -e 'delay 0.15' -e 'key code 36' -e 'delay 0.5' -e 'key code 124' -e 'delay 0.15' -e 'key code 36' -e 'end tell'",
+      "label" : "plus → \/effort, Right, Enter (raise effort, paced)"
     },
     "mod10" : {
       "action" : "shell",
