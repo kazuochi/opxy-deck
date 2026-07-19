@@ -43,8 +43,9 @@ make doctor    # preflight — prints the fix for anything missing
    the #1 "keys stopped working" cause — `make doctor` checks visibility.)
 3. **Accessibility permission:** System Settings → Privacy & Security →
    Accessibility → enable your terminal, restart it. (`--tmux` mode needs none.)
-4. **Voice (optional):** in Claude Code run `/voice tap` (tap mode is required —
-   hold mode can't see synthetic keys). Needs `sox` (`make deps` installs it).
+4. **Voice (optional):** in Claude Code run `/voice tap` (matches the default
+   profile's tap-style PTT; see Troubleshooting for hold style, which can dictate
+   into a drafted prompt). Needs `sox` (`make deps` installs it).
    First use prompts for mic access — that grant is **per-app**, so a second
    terminal prompts again.
 5. **Test safely, then go:**
@@ -182,9 +183,17 @@ keys are one `shell` mapping each: `herdr agent focus review`.
   like a MIDI or permissions fault when it isn't. `brew install sox`
   (`make doctor` now checks this). If the *non-voice* controls are dead too,
   it's not sox — check Accessibility above.
-- **PTT quirks are Claude's rules**: starts only on empty input; <3-word
-  dictations insert but don't auto-submit; auto-stops at 15 s silence / 2 min.
-  Voice needs Claude.ai auth and a local mic — it doesn't work over SSH.
+- **PTT quirks are Claude's rules**: tap-mode dictation starts only on an
+  **empty** input; <3-word dictations insert but don't auto-submit; auto-stops
+  at 15 s silence / 2 min. Voice needs Claude.ai auth and a local mic — it
+  doesn't work over SSH.
+- **Dictating into a drafted prompt**: tap mode refuses to start once the input
+  has text (that's how it tells "start dictating" from "type a space"). Fix:
+  give the record key `"style": "hold"` in the profile and run `/voice hold` —
+  the bridge then holds Space down for as long as you hold the key
+  (down + keyboard-rate repeat + up, indistinguishable from a physical hold),
+  and hold mode inserts the transcript at the cursor with no empty-input rule.
+  Hold style needs the CGEvent path (over `--tmux` it degrades to a tap).
 - **Knob dead at one extreme?** Absolute mode clamps at 0/127 — the bridge
   treats re-sent bounds as continued turning; if your unit goes silent at the
   rail, switch the device encoders to relative (shift + mid grey knob) and set
@@ -220,5 +229,5 @@ roadmap, untested. Voice is desk-only always (it records the Mac's mic).
 `opxy-bridge.swift` (engine, dep-free) · `OpxyMapper.swift` (GUI) ·
 `profiles/` (bundled mappings) · `opxy-controls.json` (census) ·
 `MAPPING-SCHEMA.md` (schema truth) · `skills/deck/` (agent skill) ·
-`selftest.sh` (33 assertions, no device needed) · `doctor.sh` (preflight) ·
+`selftest.sh` (41 assertions, no device needed) · `doctor.sh` (preflight) ·
 `miditest.swift` (virtual MIDI source for device-free testing)

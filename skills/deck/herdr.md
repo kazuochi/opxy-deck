@@ -1,9 +1,8 @@
 # Herdr reference for deck mapping
 
-Verified against herdr 0.7.4 (installed at `/opt/homebrew/bin/herdr`) and
-https://herdr.dev/ on 2026-07-18. Kaz's `~/.config/herdr/config.toml` is stock
-(all default keybindings; prefix = `ctrl+b`). If a mapping misbehaves, re-check
-`herdr --help` / `herdr <sub> --help` — the CLI is the source of truth.
+The installed `herdr` CLI is the source of truth — re-check `herdr --help` /
+`herdr <sub> --help` when a mapping misbehaves. `~/.config/herdr/config.toml`
+is stock: all default keybindings apply, prefix = `ctrl+b`.
 
 ## What herdr is
 
@@ -85,6 +84,29 @@ Deck chord syntax: prefix = `C-b`, then the key, as a `keys` sequence.
 
 Inside the agents sidebar / pickers, plain `h j k l`, arrows, `enter`, `esc`
 navigate — the deck's `select` (Down/Up) and `submit`/`esc` actions work there.
+
+## Index-based selection (tabs / workspaces / agents)
+
+All `herdr … list` commands print JSON. Tabs carry a stable per-workspace
+`number`, workspaces a global `number`; agents have no number — list order =
+sidebar order. Nop-safe when the index doesn't exist:
+
+```sh
+# tab N in the focused workspace
+ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace "$ws" | jq -r '.result.tabs[]|select(.number==N).tab_id'); [ -n "$id" ] && herdr tab focus "$id"
+# workspace N
+id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==N).workspace_id'); [ -n "$id" ] && herdr workspace focus "$id"
+# agent N (1-based list order; focus jumps across workspaces)
+t=$(herdr agent list | jq -r '.result.agents[N-1].terminal_id // empty'); [ -n "$t" ] && herdr agent focus "$t"
+```
+
+## OP-XY controls outside the census
+
+- Track keys 1–8 = **CC 19–26**. Profile entries need explicit `"cc": N`
+  (any entry key name works).
+- `make capture` receives no MIDI from Claude's sandboxed shell (silent
+  denial). Have the user run `! cd ~/Developer/opxy-deck && ./opxy-bridge
+  --capture` themselves, or read their pane via `herdr pane read`.
 
 ## Herdr-specific mapping facts
 

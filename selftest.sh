@@ -1,7 +1,8 @@
 #!/bin/bash
 # opxy-bridge self-test — no device needed. Covers: legacy v0 decode, profile v1
 # decode + primitives, --check validation, --capture, --use/--profiles state,
-# hot reload (edit + switch + last-good on failure), --migrate round-trip.
+# hot reload (edit + switch + last-good on failure), ptt hold style, --migrate
+# round-trip.
 set -u
 cd "$(dirname "$0")"
 
@@ -151,6 +152,27 @@ cat > "$OPXY_CONFIG_DIR/profiles/repbad.json" <<'EOF'
 { "controls": { "transport.play": { "action": "submit", "repeat": true } } }
 EOF
 check "repeat on wrong action warns" "./opxy-bridge --check repbad 2>&1 | grep -q 'only applies'"
+
+echo "— ptt hold style"
+cat > "$OPXY_CONFIG_DIR/profiles/hold.json" <<'EOF'
+{ "controls": { "transport.record": { "action": "ptt", "style": "hold" } } }
+EOF
+./opxy-bridge --check hold >/dev/null 2>&1 && ok "hold style validates" || bad "hold style validates"
+./opxy-bridge --use hold >/dev/null 2>&1
+HLOG="$TD/hold.log"
+# press 60 ms → key-down on press, key-up on release, exactly once each
+( printf 'channel 1 control-change 55 127\n'; sleep 0.06
+  printf 'channel 1 control-change 55 0\n';   sleep 0.3 ) | ./opxy-bridge --dry-run > "$HLOG" 2>&1
+check "hold: down on press, up on release" "[ \"\$(grep -c 'Space down' '$HLOG')\" = 1 ] && [ \"\$(grep -c 'Space up' '$HLOG')\" = 1 ]"
+cat > "$TD/badstyle.json" <<'EOF'
+{ "controls": { "transport.record": { "action": "ptt", "style": "toggle" } } }
+EOF
+./opxy-bridge --check "$TD/badstyle.json" >/dev/null 2>&1 && bad "bad style value rejected" || ok "bad style value rejected"
+cat > "$TD/stylewarn.json" <<'EOF'
+{ "controls": { "transport.play": { "action": "submit", "style": "hold" } } }
+EOF
+OUT=$(./opxy-bridge --check "$TD/stylewarn.json" 2>&1); RC=$?
+check "style on wrong action warns, passes" "[ $RC = 0 ] && grep -q 'only applies' <<< \"\$OUT\""
 
 echo "— --migrate legacy → v1"
 ./opxy-bridge --migrate mapping.json "$TD/migrated.json" >/dev/null 2>&1 && ok "migrate runs" || bad "migrate runs"

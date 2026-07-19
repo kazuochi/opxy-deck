@@ -36,12 +36,13 @@ struct ProfileEntryJ: Codable {
     let cw: String?; let ccw: String?; let command: String?
     let mode: String?; let invert: Bool?
     let note: Int?; let cc: Int?; let label: String?
-    // hold-to-repeat (bridge feature; the GUI doesn't edit these but MUST carry them —
-    // Codable drops unknown keys on re-encode, so omitting them here would make every
-    // GUI autosave silently strip agent-authored repeat settings)
+    // hold-to-repeat + ptt style (bridge features; the GUI doesn't edit these but MUST
+    // carry them — Codable drops unknown keys on re-encode, so omitting them here would
+    // make every GUI autosave silently strip agent-authored settings)
     var `repeat`: Bool? = nil
     var repeatDelayMs: Int? = nil
     var repeatRateMs: Int? = nil
+    var style: String? = nil
 }
 struct ProfileFileJ: Codable {
     let app: String?; let chime: String?; var controls: [String: ProfileEntryJ]
@@ -772,7 +773,8 @@ final class Store: ObservableObject {
                     cw: raw.cw, ccw: raw.ccw, command: raw.command, mode: raw.mode,
                     invert: isTurnSlot(slot) ? (a.invert ? true : nil) : raw.invert,
                     note: raw.note, cc: raw.cc, label: raw.label,
-                    repeat: raw.`repeat`, repeatDelayMs: raw.repeatDelayMs, repeatRateMs: raw.repeatRateMs)
+                    repeat: raw.`repeat`, repeatDelayMs: raw.repeatDelayMs, repeatRateMs: raw.repeatRateMs,
+                    style: raw.style)
                 continue
             }
             let isKnob = isTurnSlot(slot)

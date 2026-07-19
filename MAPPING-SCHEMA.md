@@ -63,7 +63,7 @@ The main volume knob transmits nothing (stays hardware volume).
 | `type` | `text` | Types the string; `\n` = Enter. Any slash command: `{"action":"type","text":"/compact\n"}` |
 | `key` | `chord` or `keys` (array) | One chord, or a sequence pressed in order |
 | `shell` | `command` | Runs via `/bin/sh -c` (fire-and-forget) |
-| `ptt` | — | Dictation: Space on press; Space again on release if held ≥ 0.25 s (hold-to-talk and tap-tap both work) |
+| `ptt` | `style` (optional) | Dictation. `"tap"` (default): Space on press, Space again on release if held ≥ 0.25 s — pairs with Claude Code's `/voice tap`, which only starts on an **empty** input. `"hold"`: Space is genuinely **held down** for the press duration (key-down, keyboard-rate auto-repeat, key-up) — pairs with `/voice hold`, which has no empty-input rule, so dictation can append to a drafted prompt. Hold style needs the CGEvent path (over `--tmux` it degrades to a tap); safety cap releases Space after 150 s without a MIDI release |
 | `submit` | — | Enter |
 | `esc` | — | Esc |
 | `profile_cycle` | — | Switch to the next profile (alphabetical), with chime |

@@ -96,6 +96,11 @@ struct EntryJ: Codable {
     var `repeat`: Bool? = nil
     var repeatDelayMs: Int? = nil   // before the first repeat; default = system "delay until repeat"
     var repeatRateMs: Int? = nil    // between repeats;        default = system "key repeat rate"
+    // action "ptt" only: "tap" (default) sends Space per press — pairs with `/voice tap`,
+    // which only starts on an empty input. "hold" emulates a physically held Space
+    // (key-down + auto-repeat + key-up on release) — pairs with `/voice hold`, which has
+    // no empty-input rule, so dictation can append to a drafted prompt.
+    var style: String? = nil
 }
 
 // The user's macOS key-repeat feel, read once at startup — deck repeat should be
@@ -206,6 +211,8 @@ let KP_PAGEDOWN = parseChord("PageDown")!
 
 protocol Sender {
     func press(_ k: KeyPress)
+    func keyDown(_ k: KeyPress)   // half of a sustained hold — must be paired with keyUp
+    func keyUp(_ k: KeyPress)
     func text(_ s: String)
     func scroll(_ lines: Int, name: String)   // + = up (older), - = down (newer)
     func shell(_ command: String)             // fire-and-forget /bin/sh -c
@@ -237,6 +244,20 @@ final class CGSender: Sender {
         up.flags = k.flags
         down.post(tap: .cghidEventTap)
         up.post(tap: .cghidEventTap)
+        log("sent \(k.name)")
+    }
+
+    func keyDown(_ k: KeyPress) {
+        guard let ev = CGEvent(keyboardEventSource: src, virtualKey: k.code, keyDown: true) else { return }
+        ev.flags = k.flags
+        ev.post(tap: .cghidEventTap)
+        log("sent \(k.name)")
+    }
+
+    func keyUp(_ k: KeyPress) {
+        guard let ev = CGEvent(keyboardEventSource: src, virtualKey: k.code, keyDown: false) else { return }
+        ev.flags = k.flags
+        ev.post(tap: .cghidEventTap)
         log("sent \(k.name)")
     }
 
@@ -288,6 +309,15 @@ final class TmuxSender: Sender {
         log("tmux \(k.name)")
     }
 
+    // send-keys has no key-up/down halves — a hold degrades to a tap (tap-style dictation
+    // still works over tmux; hold-style needs the CGEvent path).
+    func keyDown(_ k: KeyPress) {
+        log("tmux: can't hold a key — \(k.name) sent as a tap")
+        press(k)
+    }
+
+    func keyUp(_ k: KeyPress) {}
+
     func text(_ s: String) {
         run(["-l", s])
         log("tmux typed \"\(s)\"")
@@ -304,6 +334,8 @@ final class TmuxSender: Sender {
 
 final class DrySender: Sender {
     func press(_ k: KeyPress) { log("[dry] \(k.name)") }
+    func keyDown(_ k: KeyPress) { log("[dry] \(k.name)") }
+    func keyUp(_ k: KeyPress) { log("[dry] \(k.name)") }
     func text(_ s: String) { log("[dry] type \"\(s)\"") }
     func scroll(_ lines: Int, name: String) { log("[dry] scroll \(lines) (\(name))") }
     func shell(_ command: String) { log("[dry] shell: \(command)") }
@@ -318,6 +350,7 @@ struct RtEntry {
     let chords: [KeyPress]
     let command: String?
     var repeatSpec: (delay: Double, rate: Double)? = nil   // resolved seconds; nil = no repeat
+    var pttHold: Bool = false                              // ptt style "hold": Space held for the press duration
 }
 
 struct RtKnob {
@@ -425,8 +458,16 @@ func buildRuntime(_ p: ProfileJ, census: [String: CensusId]) -> LoadResult {
             if name.hasSuffix(".turn") {
                 res.warnings.append("\(name): button action \"\(e.action)\" on an encoder turn — every detent will fire it")
             }
+            if let s = e.style, e.action != "ptt" {
+                res.warnings.append("\(name): \"style\" only applies to action \"ptt\" — ignored on \"\(e.action)\" (got \"\(s)\")")
+            }
             var chords: [KeyPress] = []
             switch e.action {
+            case "ptt":
+                if let s = e.style, s != "tap" && s != "hold" {
+                    res.errors.append("\(name): ptt style must be \"tap\" or \"hold\", got \"\(s)\"")
+                    continue
+                }
             case "type":
                 guard let t = e.text, !t.isEmpty else {
                     res.errors.append("\(name): action \"type\" needs \"text\"")
@@ -466,7 +507,8 @@ func buildRuntime(_ p: ProfileJ, census: [String: CensusId]) -> LoadResult {
                 }
             }
             let entry = RtEntry(control: name, action: e.action, text: e.text, chords: chords,
-                                command: e.command, repeatSpec: rep)
+                                command: e.command, repeatSpec: rep,
+                                pttHold: e.action == "ptt" && e.style == "hold")
             if id.isNote { rt.notes[id.num] = entry } else { rt.buttons[id.num] = entry }
         } else {
             res.errors.append("\(name): unknown action \"\(e.action)\" (knob: \(KNOB_ACTIONS.sorted().joined(separator: "/")); button: \(BUTTON_ACTIONS.sorted().joined(separator: "/")))")
@@ -570,6 +612,14 @@ final class Engine {
     // to continue. A runaway repeater aimed at Backspace would otherwise eat the prompt.
     let maxRepeatWindow = 5.0
 
+    // PTT "hold" style: emulate a physically held Space — key-down, auto-repeat key-downs
+    // at the user's key-repeat feel (legacy terminals infer "still held" from the repeat
+    // stream; kitty-protocol terminals see the real down/up), key-up on release.
+    // Guarded by `lock` like repeatTimers. Cap sits above Claude's 2-min recording limit:
+    // a BLE-lost release would otherwise leave a synthetic Space down forever.
+    private var holdTimers: [String: DispatchSourceTimer] = [:]
+    let maxHoldWindow = 150.0
+
     init(sender: Sender, rt: RuntimeMapping, dryRun: Bool) {
         self.sender = sender
         self.rt = rt
@@ -582,7 +632,11 @@ final class Engine {
         lastAbs = [:]      // knobs re-prime on first turn after a profile change
         repeatTimers.values.forEach { $0.cancel() }   // a held key must not repeat across a profile switch
         repeatTimers = [:]
+        let held = holdTimers
+        holdTimers = [:]
         lock.unlock()
+        held.values.forEach { $0.cancel() }           // a held Space must not survive a profile switch either
+        if !held.isEmpty { sender.keyUp(KP_SPACE.named("Space up (dictation hold — profile switch)")) }
     }
 
     // Fire the entry's payload again after `delay`, then every `rate`, until release
@@ -617,6 +671,44 @@ final class Engine {
         t?.cancel()
     }
 
+    private func startHold(_ id: String) {
+        let t = DispatchSource.makeTimerSource(queue: repeatQ)
+        t.schedule(deadline: .now() + SYS_REPEAT.delay, repeating: SYS_REPEAT.rate)
+        t.setEventHandler { [weak self] in
+            self?.sender.keyDown(KP_SPACE.named("Space repeat (dictation hold)"))
+        }
+        // Cap targets this timer instance, so a release+re-press is never killed by the
+        // old press's cap (same pattern as the repeat cap above).
+        repeatQ.asyncAfter(deadline: .now() + maxHoldWindow) { [weak self] in
+            guard let self else { return }
+            self.lock.lock()
+            let live = self.holdTimers[id] === t
+            if live { self.holdTimers.removeValue(forKey: id) }
+            self.lock.unlock()
+            guard live else { return }
+            t.cancel()
+            self.sender.keyUp(KP_SPACE.named("Space up (dictation hold cap)"))
+            log("ptt hold: \(id) capped at \(Int(self.maxHoldWindow)) s without a MIDI release")
+        }
+        t.resume()
+        lock.lock()
+        holdTimers.removeValue(forKey: id)?.cancel()
+        holdTimers[id] = t
+        lock.unlock()
+    }
+
+    // Release an active hold's Space, exactly once. False if none live (already capped/swapped).
+    @discardableResult
+    private func endHold(_ id: String) -> Bool {
+        lock.lock()
+        let t = holdTimers.removeValue(forKey: id)
+        lock.unlock()
+        guard let t else { return false }
+        t.cancel()
+        sender.keyUp(KP_SPACE.named("Space up (dictation release)"))
+        return true
+    }
+
     private func current() -> RuntimeMapping {
         lock.lock(); defer { lock.unlock() }
         return rt
@@ -629,7 +721,12 @@ final class Engine {
             sender.shell(e.command ?? "")
         case "ptt":
             pttDownAt[id] = .now()
-            sender.press(KP_SPACE.named("Space (dictation start/stop)"))
+            if e.pttHold {
+                sender.keyDown(KP_SPACE.named("Space down (dictation hold)"))
+                startHold(id)
+            } else {
+                sender.press(KP_SPACE.named("Space (dictation start/stop)"))
+            }
         case "submit":
             sender.press(KP_ENTER.named("Enter"))
         case "esc":
@@ -681,6 +778,7 @@ final class Engine {
     func release(_ e: RtEntry, id: String) {
         cancelRepeat(id)
         guard e.action == "ptt", let t0 = pttDownAt.removeValue(forKey: id) else { return }
+        if e.pttHold { endHold(id); return }
         let held = Double(DispatchTime.now().uptimeNanoseconds - t0.uptimeNanoseconds) / 1_000_000_000
         if held >= minHoldForRelease {
             sender.press(KP_SPACE.named("Space (dictation send after \(String(format: "%.1f", held))s hold)"))

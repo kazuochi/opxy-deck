@@ -89,6 +89,30 @@
       "action" : "profile_cycle",
       "label" : "step 16 → cycle profile (back to claude-code)"
     },
+    "space1" : {
+      "cc" : 11,
+      "action" : "shell",
+      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==1).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
+      "label" : "space 1 → herdr workspace 1 (nop if absent)"
+    },
+    "space2" : {
+      "cc" : 12,
+      "action" : "shell",
+      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==2).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
+      "label" : "space 2 → herdr workspace 2"
+    },
+    "space3" : {
+      "cc" : 13,
+      "action" : "shell",
+      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==3).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
+      "label" : "space 3 → herdr workspace 3"
+    },
+    "space4" : {
+      "cc" : 14,
+      "action" : "shell",
+      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==4).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
+      "label" : "space 4 → herdr workspace 4"
+    },
     "track1" : {
       "cc" : 19,
       "action" : "shell",
