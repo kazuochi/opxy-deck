@@ -650,8 +650,14 @@ final class Store: ObservableObject {
         checkSkill()
     }
 
+    // NOTE (menu stability): everything this 0.7 s tick touches must assign @Published
+    // vars only on real change. An unconditional assign fires objectWillChange even for
+    // an identical value, re-rendering the view tree — which makes AppKit tear down any
+    // open Menu, so hover submenus (the action picker's drill-down columns) collapse
+    // before they can be clicked.
     func pollExternalChanges() {
-        axTrusted = AXIsProcessTrusted()
+        let ax = AXIsProcessTrusted()
+        if ax != axTrusted { axTrusted = ax }
         checkSkill()   // skill installs/removals show up in the dropdown live
 
         // Someone switched the active profile (agent, `make use`, another GUI).
@@ -706,7 +712,8 @@ final class Store: ObservableObject {
     var skillTarget: String { dir + "/skills/deck" }
 
     func checkSkill() {
-        skillLinked = (try? FileManager.default.destinationOfSymbolicLink(atPath: skillLink)) == skillTarget
+        let linked = (try? FileManager.default.destinationOfSymbolicLink(atPath: skillLink)) == skillTarget
+        if linked != skillLinked { skillLinked = linked }
         scanSkills()
     }
 
@@ -720,13 +727,15 @@ final class Store: ObservableObject {
     func scanSkills() {
         let fm = FileManager.default
         let skillRoot = NSHomeDirectory() + "/.claude/skills"
-        userSkills = ((try? fm.contentsOfDirectory(atPath: skillRoot)) ?? [])
+        let skills = ((try? fm.contentsOfDirectory(atPath: skillRoot)) ?? [])
             .filter { fm.fileExists(atPath: skillRoot + "/" + $0 + "/SKILL.md") }
             .sorted()
+        if skills != userSkills { userSkills = skills }
         let cmdRoot = NSHomeDirectory() + "/.claude/commands"
         let custom = ((try? fm.contentsOfDirectory(atPath: cmdRoot)) ?? [])
             .filter { $0.hasSuffix(".md") }.map { String($0.dropLast(3)) }
-        userCommands = Array(Set(BUILTIN_COMMANDS + custom)).sorted()
+        let cmds = Array(Set(BUILTIN_COMMANDS + custom)).sorted()
+        if cmds != userCommands { userCommands = cmds }
     }
 
     func installSkill() {
