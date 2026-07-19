@@ -196,10 +196,12 @@ keys are one `shell` mapping each: `herdr agent focus review`.
 - **Dictating into a drafted prompt**: tap mode refuses to start once the input
   has text (that's how it tells "start dictating" from "type a space"). Fix:
   give the record key `"style": "hold"` in the profile and run `/voice hold` —
-  the bridge then holds Space down for as long as you hold the key
-  (down + keyboard-rate repeat + up, indistinguishable from a physical hold),
-  and hold mode inserts the transcript at the cursor with no empty-input rule.
-  Hold style needs the CGEvent path (over `--tmux` it degrades to a tap).
+  hold mode has no empty-input rule and inserts the transcript at the cursor.
+  While the deck key is held, the bridge feeds Claude the auto-repeat stream
+  its hold detection listens for; releasing stops the stream, which *is* the
+  release signal. Works over `--tmux` too. Note release **inserts** the
+  transcript but does not auto-submit — that's Claude's hold-mode behavior;
+  PLAY (submit) sends it.
 - **Knob dead at one extreme?** Absolute mode clamps at 0/127 — the bridge
   treats re-sent bounds as continued turning; if your unit goes silent at the
   rail, switch the device encoders to relative (shift + mid grey knob) and set
