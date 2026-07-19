@@ -222,6 +222,9 @@ protocol Sender {
     func press(_ k: KeyPress)
     func keyDown(_ k: KeyPress)   // half of a sustained hold — must be paired with keyUp
     func keyUp(_ k: KeyPress)
+    func keyRepeat(_ k: KeyPress) // auto-repeat between keyDown and keyUp — MUST carry the
+                                  // HID autorepeat flag: an unflagged down reads as a NEW
+                                  // press (Claude's hold mode stops recording on it)
     func text(_ s: String)
     func scroll(_ lines: Int, name: String)   // + = up (older), - = down (newer)
     func shell(_ command: String)             // fire-and-forget /bin/sh -c
@@ -268,6 +271,14 @@ final class CGSender: Sender {
         ev.flags = k.flags
         ev.post(tap: .cghidEventTap)
         log("sent \(k.name)")
+    }
+
+    func keyRepeat(_ k: KeyPress) {
+        guard let ev = CGEvent(keyboardEventSource: src, virtualKey: k.code, keyDown: true) else { return }
+        ev.flags = k.flags
+        ev.setIntegerValueField(.keyboardEventAutorepeat, value: 1)
+        ev.post(tap: .cghidEventTap)
+        // no log — repeats fire at key-repeat rate and would flood the console
     }
 
     func scroll(_ lines: Int, name: String) {
@@ -326,6 +337,7 @@ final class TmuxSender: Sender {
     }
 
     func keyUp(_ k: KeyPress) {}
+    func keyRepeat(_ k: KeyPress) {}   // repeating over tmux would type space spam
 
     func text(_ s: String) {
         run(["-l", s])
@@ -345,6 +357,7 @@ final class DrySender: Sender {
     func press(_ k: KeyPress) { log("[dry] \(k.name)") }
     func keyDown(_ k: KeyPress) { log("[dry] \(k.name)") }
     func keyUp(_ k: KeyPress) { log("[dry] \(k.name)") }
+    func keyRepeat(_ k: KeyPress) { log("[dry] \(k.name)") }
     func text(_ s: String) { log("[dry] type \"\(s)\"") }
     func scroll(_ lines: Int, name: String) { log("[dry] scroll \(lines) (\(name))") }
     func shell(_ command: String) { log("[dry] shell: \(command)") }
@@ -714,7 +727,7 @@ final class Engine {
         let t = DispatchSource.makeTimerSource(queue: repeatQ)
         t.schedule(deadline: .now() + SYS_REPEAT.delay, repeating: SYS_REPEAT.rate)
         t.setEventHandler { [weak self] in
-            self?.sender.keyDown(KP_SPACE.named("Space repeat (dictation hold)"))
+            self?.sender.keyRepeat(KP_SPACE.named("Space repeat (dictation hold)"))
         }
         // Cap targets this timer instance, so a release+re-press is never killed by the
         // old press's cap (same pattern as the repeat cap above).
