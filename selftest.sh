@@ -164,6 +164,12 @@ HLOG="$TD/hold.log"
 ( printf 'channel 1 control-change 55 127\n'; sleep 0.06
   printf 'channel 1 control-change 55 0\n';   sleep 0.3 ) | ./opxy-bridge --dry-run > "$HLOG" 2>&1
 check "hold: down on press, up on release" "[ \"\$(grep -c 'Space down' '$HLOG')\" = 1 ] && [ \"\$(grep -c 'Space up' '$HLOG')\" = 1 ]"
+# hold 400 ms → liveness repeats at the fixed 50 ms cadence (~7; must beat Claude's
+# ~200 ms warmup, so ≥4 in the first 400 ms proves cadence isn't on key-repeat prefs)
+( printf 'channel 1 control-change 55 127\n'; sleep 0.4
+  printf 'channel 1 control-change 55 0\n';   sleep 0.3 ) | ./opxy-bridge --dry-run > "$HLOG" 2>&1
+N=$(grep -c 'Space repeat' "$HLOG")
+check "hold: liveness repeats at 50 ms cadence ($N in 400 ms)" "[ \"$N\" -ge 4 ] && [ \"$N\" -le 12 ]"
 cat > "$TD/badstyle.json" <<'EOF'
 { "controls": { "transport.record": { "action": "ptt", "style": "toggle" } } }
 EOF

@@ -329,15 +329,21 @@ final class TmuxSender: Sender {
         log("tmux \(k.name)")
     }
 
-    // send-keys has no key-up/down halves — a hold degrades to a tap (tap-style dictation
-    // still works over tmux; hold-style needs the CGEvent path).
+    // send-keys has no key-up/down halves, but hold-mode dictation doesn't need them:
+    // Claude keeps recording alive from the repeat CHAR stream and treats its silence
+    // as the release (verified live via pty injection). So a hold over tmux = the same
+    // char at the hold cadence until release.
     func keyDown(_ k: KeyPress) {
-        log("tmux: can't hold a key — \(k.name) sent as a tap")
-        press(k)
+        guard !k.tmux.isEmpty else { log("tmux: \(k.name) not sendable — skipped"); return }
+        run([k.tmux])
+        log("tmux hold start (char-stream): \(k.name)")
     }
 
-    func keyUp(_ k: KeyPress) {}
-    func keyRepeat(_ k: KeyPress) {}   // repeating over tmux would type space spam
+    func keyUp(_ k: KeyPress) {}       // release = the stream stopping
+    func keyRepeat(_ k: KeyPress) {
+        guard !k.tmux.isEmpty else { return }
+        run([k.tmux])                  // no log — fires at hold cadence
+    }
 
     func text(_ s: String) {
         run(["-l", s])
@@ -664,12 +670,17 @@ final class Engine {
     // to continue. A runaway repeater aimed at Backspace would otherwise eat the prompt.
     let maxRepeatWindow = 5.0
 
-    // PTT "hold" style: emulate a physically held Space — key-down, auto-repeat key-downs
-    // at the user's key-repeat feel (legacy terminals infer "still held" from the repeat
-    // stream; kitty-protocol terminals see the real down/up), key-up on release.
+    // PTT "hold" style. Claude's hold-mode contract (verified against the 2.1.215 binary
+    // AND live on a pane): recording starts on Space, stays alive from the *auto-repeat
+    // stream*, and "no repeats within the warmup (~200 ms) → fallback release timer →
+    // stop". Key release events are NOT consulted — the stream's silence IS the release.
+    // So a hold = key-down + repeats at a fixed fast cadence (liveness signal, deliberately
+    // NOT the user's cosmetic key-repeat prefs — a 375 ms first repeat misses the warmup
+    // and recording dies ~0.5 s in), + key-up for hygiene.
     // Guarded by `lock` like repeatTimers. Cap sits above Claude's 2-min recording limit:
-    // a BLE-lost release would otherwise leave a synthetic Space down forever.
+    // a BLE-lost release would otherwise leave the stream running forever.
     private var holdTimers: [String: DispatchSourceTimer] = [:]
+    let holdCadence = 0.05        // must beat the warmup window; real repeats run 30–90 ms
     let maxHoldWindow = 150.0
 
     init(sender: Sender, rt: RuntimeMapping, dryRun: Bool) {
@@ -725,7 +736,7 @@ final class Engine {
 
     private func startHold(_ id: String) {
         let t = DispatchSource.makeTimerSource(queue: repeatQ)
-        t.schedule(deadline: .now() + SYS_REPEAT.delay, repeating: SYS_REPEAT.rate)
+        t.schedule(deadline: .now() + holdCadence, repeating: holdCadence)
         t.setEventHandler { [weak self] in
             self?.sender.keyRepeat(KP_SPACE.named("Space repeat (dictation hold)"))
         }
