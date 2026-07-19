@@ -8,7 +8,6 @@
     },
     "enc1.turn" : {
       "action" : "select",
-      "invert" : true,
       "label" : "encoder 1 turn → select",
       "mode" : "absolute"
     },
@@ -37,19 +36,11 @@
       "action" : "model_picker",
       "label" : "key num 2 → model_picker"
     },
-    "kb.w1" : {
-      "action" : "effort_command",
-      "label" : "key ✋ → effort_command"
-    },
     "kb.w12" : {
       "action" : "model_picker"
     },
     "kb.w13" : {
       "action" : "effort_command"
-    },
-    "kb.w2" : {
-      "action" : "thinking_toggle",
-      "label" : "key ÷ → thinking_toggle"
     },
     "key_com" : {
       "action" : "key",
