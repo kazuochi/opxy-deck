@@ -1,4 +1,4 @@
-// OpxyMapper v2 — GUI key mapper for the OP-XY Claude Deck.
+// OpxyMapper v2 — GUI key mapper for opxy-deck.
 //
 // Full-panel line-art rendition of the OP-XY: every physical control is clickable.
 // Click a control → (if unknown) press it on the device to identify → assign an
@@ -1008,16 +1008,65 @@ struct SpeakerDots: Shape {
     }
 }
 
+// MARK: - Flow layout
+
+// Wrapping row layout: items pack left-to-right and wrap to new rows as the window
+// narrows — lets the mapper sit beside a terminal instead of demanding ~1040 pt.
+// Each row is vertically centered so mixed-height items (dividers, pickers) align.
+struct FlowLayout: Layout {
+    var hSpacing: CGFloat = 12
+    var vSpacing: CGFloat = 8
+
+    private func rows(_ subviews: Subviews, maxW: CGFloat) -> [[(Subviews.Element, CGSize)]] {
+        var rows: [[(Subviews.Element, CGSize)]] = [[]]
+        var x: CGFloat = 0
+        for v in subviews {
+            let s = v.sizeThatFits(.unspecified)
+            if x > 0 && x + s.width > maxW { rows.append([]); x = 0 }
+            rows[rows.count - 1].append((v, s))
+            x += s.width + hSpacing
+        }
+        return rows
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxW = proposal.width ?? .infinity
+        var h: CGFloat = 0, w: CGFloat = 0
+        for row in rows(subviews, maxW: maxW) {
+            let rowW = row.reduce(0) { $0 + $1.1.width } + hSpacing * CGFloat(max(0, row.count - 1))
+            let rowH = row.reduce(0) { max($0, $1.1.height) }
+            w = max(w, rowW)
+            h += (h > 0 ? vSpacing : 0) + rowH
+        }
+        return CGSize(width: proposal.width ?? w, height: h)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in rows(subviews, maxW: bounds.width) {
+            let rowH = row.reduce(0) { max($0, $1.1.height) }
+            var x = bounds.minX
+            for (v, s) in row {
+                v.place(at: CGPoint(x: x, y: y + (rowH - s.height) / 2),
+                        anchor: .topLeading, proposal: ProposedViewSize(s))
+                x += s.width + hSpacing
+            }
+            y += rowH + vSpacing
+        }
+    }
+}
+
 // MARK: - Detail panel
 
 struct DetailPanel: View {
     @ObservedObject var store: Store
     @Binding var encSlotIsClick: Bool
 
-    // Horizontal configuration bar, shown beneath the device panel.
+    // Configuration bar beneath the device panel — wraps as the window narrows.
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        Group {
             if let slot = store.selected, let c = store.control(for: slot) {
+                FlowLayout(hSpacing: 14, vSpacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(c.name).font(.headline)
                     Text(familyText(c)).font(.caption2).foregroundColor(.secondary)
@@ -1134,12 +1183,14 @@ struct DetailPanel: View {
                             .help("Remove this control's mapping from the profile")
                     }
                 }
-                Spacer(minLength: 0)
+                }
             } else {
-                Spacer()
-                Text("click a control on the panel — or touch it on the OP-XY")
-                    .font(.caption).foregroundColor(.secondary)
-                Spacer()
+                HStack {
+                    Spacer()
+                    Text("click a control on the panel — or touch it on the OP-XY")
+                        .font(.caption).foregroundColor(.secondary)
+                    Spacer()
+                }
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
@@ -1172,8 +1223,10 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 12) {
-                Text("OP-XY Claude Deck").font(.title3).bold()
+            // Wrapping header: at full width one row; narrowed beside a terminal it
+            // flows onto extra rows instead of forcing a wide window.
+            FlowLayout(hSpacing: 12, vSpacing: 6) {
+                Text("opxy-deck").font(.title3).bold()
                 Picker("", selection: Binding(
                     get: { store.profileName },
                     set: { store.switchProfile($0) }
@@ -1182,9 +1235,11 @@ struct ContentView: View {
                 }
                 .frame(width: 160)
                 .help("Active profile (deck-state.json). Switching applies live — a running bridge follows. Unsaved edits are discarded.")
-                Circle().fill(midi.opxyConnected ? .green : .red).frame(width: 9, height: 9)
-                Text(midi.opxyConnected ? "OP-XY connected" : "OP-XY not found")
-                    .font(.caption).foregroundColor(.secondary)
+                HStack(spacing: 6) {
+                    Circle().fill(midi.opxyConnected ? .green : .red).frame(width: 9, height: 9)
+                    Text(midi.opxyConnected ? "OP-XY connected" : "OP-XY not found")
+                        .font(.caption).foregroundColor(.secondary)
+                }
                 if !midi.opxyConnected {
                     Button(ble.advertising ? "Connect Bluetooth MIDI ●" : "Connect Bluetooth MIDI") {
                         ble.presentSystemMIDIWindow()
@@ -1196,7 +1251,6 @@ struct ContentView: View {
                         Text(ble.status).font(.caption2).foregroundColor(.secondary.opacity(0.8))
                     }
                 }
-                Spacer()
                 Button(showConsole ? "console ▾" : "console ▸") { showConsole.toggle() }
                     .font(.caption)
                 Button(bridge.running ? "◼ Stop bridge" : "▶ Run bridge") {
@@ -1211,10 +1265,11 @@ struct ContentView: View {
                     .font(.caption2)
                     .foregroundColor(store.dirty ? .orange : .secondary.opacity(0.7))
                     .frame(width: 46, alignment: .leading)
-                Button("") { store.save() }
-                    .keyboardShortcut("s")
-                    .frame(width: 0).opacity(0).accessibilityHidden(true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button("") { store.save() }
+                .keyboardShortcut("s")
+                .frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
 
             // Accessibility is granted to this .app's code signature, not to "the deck".
             // The app is ad-hoc signed, so every `make gui` rebuild changes its cdhash and
@@ -1287,7 +1342,7 @@ struct ContentView: View {
             }
         }
         .padding(14)
-        .frame(minWidth: 1040, minHeight: 560)
+        .frame(minWidth: 540, minHeight: 500)
         .preferredColorScheme(.dark)
         .onAppear {
             setvbuf(stdout, nil, _IOLBF, 0)
