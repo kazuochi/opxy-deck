@@ -18,10 +18,11 @@ skill:
 	@echo "linked: ~/.claude/skills/deck → $(CURDIR)/skills/deck (repo edits are live)"
 
 # GUI key mapper: click a control, press it on the OP-XY, assign an action, Save
-# If assets/opxy.svg exists (TE artwork, save it yourself — not redistributable),
-# it is converted to a vector PDF skin the app renders. No SVG → self-drawn panel.
+# assets/opxy.svg is teenage engineering's panel artwork, bundled with the prebuilt
+# opxy.pdf skin (removed immediately if TE objects). The PDF only regenerates when
+# rsvg-convert (brew: librsvg) is present — cloners without it use the bundled PDF.
 gui: opxy-mapper.app
-	@if [ -f assets/opxy.svg ]; then \
+	@if [ -f assets/opxy.svg ] && command -v rsvg-convert >/dev/null 2>&1; then \
 	   python3 skinprep.py && \
 	   rsvg-convert -f pdf -o assets/opxy.pdf assets/opxy-normalized.svg && \
 	   echo "skin: opxy.svg → opxy.pdf"; fi
