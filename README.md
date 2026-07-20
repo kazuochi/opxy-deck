@@ -43,9 +43,9 @@ make doctor    # preflight — prints the fix for anything missing
    the #1 "keys stopped working" cause — `make doctor` checks visibility.)
 3. **Accessibility permission:** System Settings → Privacy & Security →
    Accessibility → enable your terminal, restart it. (`--tmux` mode needs none.)
-4. **Voice (optional):** in Claude Code run `/voice tap` (matches the default
-   profile's tap-style PTT; see Troubleshooting for hold style, which can dictate
-   into a drafted prompt). Needs `sox` (`make deps` installs it).
+4. **Voice (optional):** in Claude Code run `/voice hold` (matches the default
+   profile's hold-style PTT — dictation works even mid-draft; see Troubleshooting
+   for the tap alternative). Needs `sox` (`make deps` installs it).
    First use prompts for mic access — that grant is **per-app**, so a second
    terminal prompts again.
 5. **Test safely, then go:**
@@ -64,17 +64,20 @@ emit map) is included, so nothing needs sniffing. If your unit differs, one
 
 | Control | What it does | How |
 |---|---|---|
-| **RECORD** | Hold to dictate, release to send (or tap-tap) | `Space` via Claude's `/voice tap` |
+| **RECORD** | Hold to dictate — works mid-draft; release inserts the transcript | held `Space` via Claude's `/voice hold` |
 | **PLAY** | Submit / accept selection | `Enter` |
 | **STOP** | Interrupt; ×2 on empty input = rewind menu | `Esc` |
-| Model key | Open model picker | types `/model` + `Enter` |
-| Effort key | Run `/effort` | types `/effort` + `Enter` |
-| Thinking key | Toggle extended thinking | `Option+T` |
+| White key 13 | Open model picker | types `/model` + `Enter` |
+| White key 14 | Run `/effort` | types `/effort` + `Enter` |
 | Select knob | Navigate any list: models, rewind, permissions, history | `Up`/`Down` |
 | Effort knob | Effort in the model picker; dialog tabs | `Left`/`Right` |
 | Scroll knob | Smooth-scroll output (pointer over terminal) | wheel events |
 | Page knob | Coarse scroll | `PageUp`/`PageDown` |
 | Knob click (1/2) | Confirm highlighted selection | `Enter` |
+| `com` key | Backspace (hold to repeat, like a real key) | `Backspace` |
+
+Dictate-into-a-draft is the signature move: type half the prompt, hold RECORD,
+speak the rest, release, PLAY to send.
 
 Pick-a-model flow: Model key → turn select knob → click the knob. Same knobs
 work in the rewind menu (`STOP`×2), permission dialogs, and history.
@@ -237,5 +240,5 @@ roadmap, untested. Voice is desk-only always (it records the Mac's mic).
 `opxy-bridge.swift` (engine, dep-free) · `OpxyMapper.swift` (GUI) ·
 `profiles/` (bundled mappings) · `opxy-controls.json` (census) ·
 `MAPPING-SCHEMA.md` (schema truth) · `skills/deck/` (agent skill) ·
-`selftest.sh` (47 assertions, no device needed) · `doctor.sh` (preflight) ·
+`selftest.sh` (~50 assertions, no device needed) · `doctor.sh` (preflight) ·
 `miditest.swift` (virtual MIDI source for device-free testing)
