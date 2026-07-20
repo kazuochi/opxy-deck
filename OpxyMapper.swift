@@ -230,11 +230,22 @@ final class MidiEngine: ObservableObject {
 
     private func drain(_ listPtr: UnsafePointer<MIDIEventList>) {
         var msgs: [MidiMsg] = []
-        var packet = listPtr.pointee.packet
-        for p in 0..<Int(listPtr.pointee.numPackets) {
-            withUnsafeBytes(of: packet.words) { raw in
-                let words = raw.bindMemory(to: UInt32.self)
-                for w in 0..<Int(packet.wordCount) {
+        // Walk the packed list IN PLACE. MIDIEventPacket's `words` is declared as a
+        // fixed 64-word tuple but real packets are variable-length: copying a packet
+        // by value over-reads, and MIDIEventPacketNext on a pointer to a local copy
+        // computes the "next packet" from a stack address — SIGSEGV the first time
+        // BLE coalesces ≥2 packets into one list (crash report 2026-07-19, pid 13089).
+        let numPackets = Int(listPtr.pointee.numPackets)
+        guard numPackets > 0,
+              let wordsOffset = MemoryLayout<MIDIEventPacket>.offset(of: \MIDIEventPacket.words)
+        else { return }
+        withUnsafePointer(to: listPtr.pointee.packet) { (first: UnsafePointer<MIDIEventPacket>) in
+            var pkt = first
+            for p in 0..<numPackets {
+                let wc = Int(pkt.pointee.wordCount)
+                let words = UnsafeRawPointer(pkt).advanced(by: wordsOffset)
+                    .assumingMemoryBound(to: UInt32.self)
+                for w in 0..<min(wc, 64) {   // reads only the words that exist
                     let word = words[w]
                     guard (word >> 28) == 0x2 else { continue }
                     let status = Int((word >> 16) & 0xF0)
@@ -246,9 +257,7 @@ final class MidiEngine: ObservableObject {
                     default: break
                     }
                 }
-            }
-            if p < Int(listPtr.pointee.numPackets) - 1 {
-                packet = withUnsafePointer(to: packet) { MIDIEventPacketNext($0).pointee }
+                if p < numPackets - 1 { pkt = UnsafePointer(MIDIEventPacketNext(pkt)) }
             }
         }
         guard !msgs.isEmpty else { return }
