@@ -31,7 +31,7 @@ OP-XY (controller mode) ──USB/BLE──▶ receivemidi ─▶ opxy-bridge �
 ## Quickstart (~10 minutes)
 
 ```bash
-git clone <repo-url> && cd opxy-deck
+git clone https://github.com/kazuochi/opxy-deck.git && cd opxy-deck
 make deps      # brew installs receivemidi + sendmidi
 make doctor    # preflight — prints the fix for anything missing
 ```
