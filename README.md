@@ -75,8 +75,10 @@ emit map) is included, so nothing needs sniffing. If your unit differs, one
 | Effort knob | Effort in the model picker; dialog tabs | `Left`/`Right` |
 | Scroll knob | Smooth-scroll output (pointer over terminal) | wheel events |
 | Page knob | Coarse scroll | `PageUp`/`PageDown` |
-| Knob click (1/2) | Confirm highlighted selection | `Enter` |
-| `com` key | Backspace (hold to repeat, like a real key) | `Backspace` |
+| Knob 1 click | Confirm highlighted selection | `Enter` |
+| Knob 2 click | **Edit mode** (chime): twist ccw = delete a char per detent; auto-exits 1.5 s after the last twist | `Backspace` per detent |
+| `com` key | Backspace (tap — the mode keys don't report holds) | `Backspace` |
+| `seq` / `audio` / `bar` | Delete word · kill to line start · restore killed text | `Ctrl+W` / `Ctrl+U` / `Ctrl+Y` |
 
 Dictate-into-a-draft is the signature move: type half the prompt, hold RECORD,
 speak the rest, release, PLAY to send.

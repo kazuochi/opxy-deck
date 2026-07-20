@@ -101,6 +101,18 @@ struct EntryJ: Codable {
     // (key-down + auto-repeat + key-up on release) — pairs with `/voice hold`, which has
     // no empty-input rule, so dictation can append to a drafted prompt.
     var style: String? = nil
+    // Layers: action "layer_toggle" latches the named layer on/off (with a chime —
+    // toggle, not hold: only the transport keys report real holds). While a layer is
+    // active, any entry with a matching key in "layers" behaves as that variant:
+    //   "enc2.click": { "action": "layer_toggle", "layer": "edit" },
+    //   "enc2.turn":  { "action": "effort",
+    //                   "layers": { "edit": { "action": "turn", "cw": "C-y", "ccw": "C-w" } } }
+    var layer: String? = nil
+    var layers: [String: EntryJ]? = nil
+    // layer_toggle only: auto-drop the layer this long after its last variant use
+    // (chimes on expiry). Bench truth behind the design: only transport keys report
+    // holds, so "hold-to-keep-a-mode" is impossible — timeout gives click-twist-done.
+    var timeoutMs: Int? = nil
 }
 
 // The user's macOS key-repeat feel, read once at startup — deck repeat should be
@@ -379,6 +391,9 @@ struct RtEntry {
     let command: String?
     var repeatSpec: (delay: Double, rate: Double)? = nil   // resolved seconds; nil = no repeat
     var pttHold: Bool = false                              // ptt style "hold": Space held for the press duration
+    var layerName: String? = nil                           // action "layer_toggle": which layer
+    var layerTimeout: Double? = nil                        // seconds of variant inactivity → auto-off
+    var layerVariants: [String: RtEntry] = [:]             // layer name → replacement while active
 }
 
 struct RtKnob {
@@ -388,6 +403,7 @@ struct RtKnob {
     let invert: Bool
     let cw: KeyPress?
     let ccw: KeyPress?
+    var layerVariants: [String: RtKnob] = [:]   // layer name → replacement while active
 }
 
 struct RuntimeMapping {
@@ -403,7 +419,8 @@ struct RuntimeMapping {
 
 let KNOB_ACTIONS: Set<String> = ["select", "effort", "scroll", "scroll_page", "turn"]
 let BUTTON_ACTIONS: Set<String> = ["ptt", "submit", "esc", "model_picker", "effort_command",
-                                   "thinking_toggle", "shell", "type", "key", "profile_cycle", "nop"]
+                                   "thinking_toggle", "shell", "type", "key", "profile_cycle", "nop",
+                                   "layer_toggle"]
 // Transport core — invariant verbs across profiles (muscle-memory guard; warning only)
 let CORE_VERBS: [String: String] = ["transport.record": "ptt", "transport.play": "submit", "transport.stop": "esc"]
 
@@ -427,6 +444,31 @@ func loadRuntime(path: String, census: [String: CensusId]) -> LoadResult {
     }
     res.errors.append("cannot parse \(path) as profile (v1) or legacy mapping (v0)")
     return res
+}
+
+// Validate a knob entry and build its runtime form. Shared by the controls loop and
+// per-layer knob variants (variants inherit the base knob's mode/invert unless set).
+func buildKnobEntry(_ name: String, _ e: EntryJ, _ res: inout LoadResult,
+                    defaultMode: String = "absolute", defaultInvert: Bool = false) -> RtKnob? {
+    let mode = e.mode ?? defaultMode
+    if mode != "absolute" && mode != "relative" {
+        res.errors.append("\(name): mode must be \"absolute\" or \"relative\", got \"\(mode)\"")
+        return nil
+    }
+    var cw: KeyPress? = nil, ccw: KeyPress? = nil
+    if e.action == "turn" {
+        guard let c1 = e.cw, let c2 = e.ccw else {
+            res.errors.append("\(name): action \"turn\" needs \"cw\" and \"ccw\" key chords")
+            return nil
+        }
+        guard let p1 = parseChord(c1), let p2 = parseChord(c2) else {
+            res.errors.append("\(name): bad chord in cw/ccw (\"\(c1)\" / \"\(c2)\")")
+            return nil
+        }
+        cw = p1; ccw = p2
+    }
+    return RtKnob(control: name, action: e.action, mode: mode,
+                  invert: e.invert ?? defaultInvert, cw: cw, ccw: ccw)
 }
 
 // Validate a key/button entry's payload and build its runtime form. Shared by the
@@ -467,6 +509,11 @@ func buildButtonEntry(_ name: String, _ e: EntryJ, _ res: inout LoadResult) -> R
             res.errors.append("\(name): action \"shell\" needs \"command\"")
             return nil
         }
+    case "layer_toggle":
+        guard let l = e.layer, !l.isEmpty else {
+            res.errors.append("\(name): action \"layer_toggle\" needs \"layer\" (the layer name)")
+            return nil
+        }
     default: break
     }
     var rep: (delay: Double, rate: Double)? = nil
@@ -478,9 +525,25 @@ func buildButtonEntry(_ name: String, _ e: EntryJ, _ res: inout LoadResult) -> R
             res.warnings.append("\(name): \"repeat\" only applies to actions \"key\"/\"type\" — ignored on \"\(e.action)\"")
         }
     }
-    return RtEntry(control: name, action: e.action, text: e.text, chords: chords,
-                   command: e.command, repeatSpec: rep,
-                   pttHold: e.action == "ptt" && e.style == "hold")
+    if e.timeoutMs != nil && e.action != "layer_toggle" {
+        res.warnings.append("\(name): \"timeoutMs\" only applies to action \"layer_toggle\" — ignored")
+    }
+    var entry = RtEntry(control: name, action: e.action, text: e.text, chords: chords,
+                        command: e.command, repeatSpec: rep,
+                        pttHold: e.action == "ptt" && e.style == "hold",
+                        layerName: e.layer,
+                        layerTimeout: e.action == "layer_toggle" ? e.timeoutMs.map { max(0.2, Double($0) / 1000) } : nil)
+    // Per-layer variants (depth 1: a variant cannot itself carry layers or toggle one).
+    for (lname, v) in (e.layers ?? [:]).sorted(by: { $0.key < $1.key }) {
+        let ctx = "\(name).layers.\(lname)"
+        guard BUTTON_ACTIONS.contains(v.action), v.action != "layer_toggle" else {
+            res.errors.append("\(ctx): layer variant needs a key/button action (not layer_toggle)")
+            continue
+        }
+        var flat = v; flat.layers = nil
+        if let ve = buildButtonEntry(ctx, flat, &res) { entry.layerVariants[lname] = ve }
+    }
+    return entry
 }
 
 func buildRuntime(_ p: ProfileJ, census: [String: CensusId]) -> LoadResult {
@@ -519,25 +582,18 @@ func buildRuntime(_ p: ProfileJ, census: [String: CensusId]) -> LoadResult {
             if name.hasSuffix(".click") || name.hasPrefix("transport.") {
                 res.warnings.append("\(name): knob action \"\(e.action)\" on a momentary button — turns won't happen")
             }
-            let mode = e.mode ?? "absolute"
-            if mode != "absolute" && mode != "relative" {
-                res.errors.append("\(name): mode must be \"absolute\" or \"relative\", got \"\(mode)\"")
-                continue
-            }
-            var cw: KeyPress? = nil, ccw: KeyPress? = nil
-            if e.action == "turn" {
-                guard let c1 = e.cw, let c2 = e.ccw else {
-                    res.errors.append("\(name): action \"turn\" needs \"cw\" and \"ccw\" key chords")
+            guard var knob = buildKnobEntry(name, e, &res) else { continue }
+            for (lname, v) in (e.layers ?? [:]).sorted(by: { $0.key < $1.key }) {
+                let ctx = "\(name).layers.\(lname)"
+                guard KNOB_ACTIONS.contains(v.action) else {
+                    res.errors.append("\(ctx): layer variant of a knob needs a knob action (\(KNOB_ACTIONS.sorted().joined(separator: "/")))")
                     continue
                 }
-                guard let p1 = parseChord(c1), let p2 = parseChord(c2) else {
-                    res.errors.append("\(name): bad chord in cw/ccw (\"\(c1)\" / \"\(c2)\")")
-                    continue
+                if let vk = buildKnobEntry(ctx, v, &res, defaultMode: knob.mode, defaultInvert: knob.invert) {
+                    knob.layerVariants[lname] = vk
                 }
-                cw = p1; ccw = p2
             }
-            rt.knobs[id.num] = RtKnob(control: name, action: e.action, mode: mode,
-                                      invert: e.invert ?? false, cw: cw, ccw: ccw)
+            rt.knobs[id.num] = knob
         } else if BUTTON_ACTIONS.contains(e.action) {
             if name.hasSuffix(".turn") {
                 res.warnings.append("\(name): button action \"\(e.action)\" on an encoder turn — every detent will fire it")
@@ -697,6 +753,9 @@ final class Engine {
         repeatTimers = [:]
         let held = holdTimers
         holdTimers = [:]
+        activeLayers = []   // a latched layer must not survive a profile switch
+        layerTimers.values.forEach { $0.cancel() }
+        layerTimers = [:]
         lock.unlock()
         held.values.forEach { $0.cancel() }           // a held Space must not survive a profile switch either
         if !held.isEmpty { sender.keyUp(KP_SPACE.named("Space up (dictation hold — profile switch)")) }
@@ -812,6 +871,22 @@ final class Engine {
             cycleProfile()
         case "nop":
             log("nop (\(e.control))")
+        case "layer_toggle":
+            guard let name = e.layerName else { return }
+            lock.lock()
+            let on = !activeLayers.contains(name)
+            if on {
+                activeLayers.insert(name)
+                if let t = e.layerTimeout { layerTimeouts[name] = t } else { layerTimeouts.removeValue(forKey: name) }
+            } else {
+                activeLayers.remove(name)
+                layerTimers.removeValue(forKey: name)?.cancel()
+            }
+            lock.unlock()
+            log("layer \(name): \(on ? "ON" : "off") (\(e.control))")
+            // Audible mode indicator — the deck has no screen; Tink = in, Bottle = out.
+            if !dryRun { runShell("afplay /System/Library/Sounds/\(on ? "Tink" : "Bottle").aiff") }
+            if on { armLayerExpiry(name) }
         default:
             log("unknown action: \(e.action)")
         }
@@ -859,6 +934,50 @@ final class Engine {
     // (like pttDownAt).
     private var routedPress: [String: RtEntry] = [:]
 
+    // Latched layers (layer_toggle). Guarded by `lock`: events arrive on the stdin
+    // thread, auto-expiry fires on repeatQ. A layer with timeoutMs drops itself that
+    // long after its last variant use — click, twist, stop; no closing click needed.
+    private var activeLayers: Set<String> = []
+    private var layerTimers: [String: DispatchSourceTimer] = [:]
+    private var layerTimeouts: [String: Double] = [:]
+
+    private func armLayerExpiry(_ name: String) {
+        lock.lock()
+        let timeout = layerTimeouts[name]
+        lock.unlock()
+        guard let timeout else { return }
+        let t = DispatchSource.makeTimerSource(queue: repeatQ)
+        t.schedule(deadline: .now() + timeout)
+        t.setEventHandler { [weak self] in
+            guard let self else { return }
+            self.lock.lock()
+            let live = self.layerTimers[name] === t && self.activeLayers.contains(name)
+            if live { self.activeLayers.remove(name); self.layerTimers.removeValue(forKey: name)?.cancel() }
+            self.lock.unlock()
+            guard live else { return }
+            log("layer \(name): off (timeout)")
+            if !self.dryRun { runShell("afplay /System/Library/Sounds/Bottle.aiff") }
+        }
+        t.resume()
+        lock.lock()
+        layerTimers.removeValue(forKey: name)?.cancel()
+        layerTimers[name] = t
+        lock.unlock()
+    }
+
+    // A layer variant wins outright — an explicit user mode beats agent routing.
+    // Using a variant refreshes its layer's inactivity timer.
+    private func applyLayers(_ e: RtEntry) -> (RtEntry, Bool) {
+        lock.lock(); let layers = activeLayers.sorted(); lock.unlock()
+        for l in layers { if let v = e.layerVariants[l] { armLayerExpiry(l); return (v, true) } }
+        return (e, false)
+    }
+    private func applyLayers(_ k: RtKnob) -> RtKnob {
+        lock.lock(); let layers = activeLayers.sorted(); lock.unlock()
+        for l in layers { if let v = k.layerVariants[l] { armLayerExpiry(l); return v } }
+        return k
+    }
+
     // Focused-pane agent label. Built-in: herdr `pane current` (~6 ms socket call);
     // PATH is extended because a Finder-launched .app doesn't see /opt/homebrew/bin.
     // A profile's "detect" replaces it with any command printing a bare label.
@@ -896,7 +1015,8 @@ final class Engine {
     func noteOn(_ note: Int) {
         let m = current()
         guard let base = m.notes[note] else { return }
-        let e = route(base, m)
+        let (le, layered) = applyLayers(base)
+        let e = layered ? le : route(le, m)
         routedPress["note\(note)"] = e
         press(e, id: "note\(note)")
     }
@@ -911,7 +1031,8 @@ final class Engine {
         // Momentary CC button (transport keys): 127 = press, 0 = release.
         if let base = m.buttons[cc] {
             if value >= 64 {
-                let e = route(base, m)
+                let (le, layered) = applyLayers(base)
+                let e = layered ? le : route(le, m)
                 routedPress["cc\(cc)"] = e
                 press(e, id: "cc\(cc)")
             } else {
@@ -919,7 +1040,8 @@ final class Engine {
             }
             return
         }
-        guard let knob = m.knobs[cc] else { return }
+        guard let rawKnob = m.knobs[cc] else { return }
+        let knob = applyLayers(rawKnob)
         var clicks = 0
         if knob.mode == "relative" {
             // Two's-complement style: 1..63 = clockwise, 65..127 = counter-clockwise.

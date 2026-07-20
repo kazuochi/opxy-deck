@@ -215,6 +215,52 @@ cat > "$TD/badroute2.json" <<'EOF'
 EOF
 ./opxy-bridge --check "$TD/badroute2.json" >/dev/null 2>&1 && bad "unknown override action rejected" || ok "unknown override action rejected"
 
+echo "— layers (layer_toggle + per-layer variants)"
+cat > "$OPXY_CONFIG_DIR/profiles/layer.json" <<'EOF'
+{
+  "controls": {
+    "enc2.click": { "action": "layer_toggle", "layer": "edit" },
+    "enc2.turn":  { "action": "effort",
+                    "layers": { "edit": { "action": "turn", "cw": "C-y", "ccw": "C-w" } } }
+  }
+}
+EOF
+./opxy-bridge --check layer >/dev/null 2>&1 && ok "layer profile validates" || bad "layer profile validates"
+./opxy-bridge --use layer >/dev/null 2>&1
+LLOG="$TD/layer.log"
+# click → layer ON; turn ccw → C-w (variant); click → off; turn ccw → Left (base effort)
+printf 'channel 1 control-change 16 127\nchannel 1 control-change 16 0\nchannel 1 control-change 2 60\nchannel 1 control-change 2 59\nchannel 1 control-change 16 127\nchannel 1 control-change 16 0\nchannel 1 control-change 2 58\n' | ./opxy-bridge --dry-run > "$LLOG" 2>&1
+check "toggle logs ON then off"      "grep -q 'layer edit: ON' '$LLOG' && grep -q 'layer edit: off' '$LLOG'"
+check "variant fires while active"   "[ \"\$(grep -c 'C-w' '$LLOG')\" = 1 ]"
+check "base returns after toggle-off" "[ \"\$(grep -c '\[dry\] Left' '$LLOG')\" = 1 ]"
+# timeout: 300 ms after the last variant use the layer drops itself
+cat > "$OPXY_CONFIG_DIR/profiles/layerto.json" <<'EOF'
+{
+  "controls": {
+    "enc2.click": { "action": "layer_toggle", "layer": "edit", "timeoutMs": 300 },
+    "enc2.turn":  { "action": "effort",
+                    "layers": { "edit": { "action": "turn", "cw": "Right", "ccw": "Backspace" } } }
+  }
+}
+EOF
+./opxy-bridge --use layerto >/dev/null 2>&1
+TLOG="$TD/layerto.log"
+( printf 'channel 1 control-change 16 127\nchannel 1 control-change 16 0\nchannel 1 control-change 2 60\nchannel 1 control-change 2 59\n'
+  sleep 0.7   # > timeout → layer must expire on its own
+  printf 'channel 1 control-change 2 58\n'; sleep 0.2 ) | ./opxy-bridge --dry-run > "$TLOG" 2>&1
+check "variant fires inside timeout"  "[ \"\$(grep -c 'Backspace' '$TLOG')\" = 1 ]"
+check "layer expires after inactivity" "grep -q 'layer edit: off (timeout)' '$TLOG'"
+check "base action back after expiry"  "[ \"\$(grep -c '\[dry\] Left' '$TLOG')\" = 1 ]"
+cat > "$TD/badlayer.json" <<'EOF'
+{ "controls": { "enc2.click": { "action": "layer_toggle" } } }
+EOF
+./opxy-bridge --check "$TD/badlayer.json" >/dev/null 2>&1 && bad "layer_toggle without layer rejected" || ok "layer_toggle without layer rejected"
+cat > "$TD/badlayer2.json" <<'EOF'
+{ "controls": { "enc2.turn": { "action": "effort",
+                "layers": { "edit": { "action": "submit" } } } } }
+EOF
+./opxy-bridge --check "$TD/badlayer2.json" >/dev/null 2>&1 && bad "button action as knob variant rejected" || ok "button action as knob variant rejected"
+
 echo "— --migrate legacy → v1"
 ./opxy-bridge --migrate mapping.json "$TD/migrated.json" >/dev/null 2>&1 && ok "migrate runs" || bad "migrate runs"
 ./opxy-bridge --check "$TD/migrated.json" >/dev/null 2>&1 && ok "migrated profile validates" || bad "migrated profile validates"

@@ -12,12 +12,22 @@
       "mode": "absolute"
     },
     "enc2.click": {
-      "action": "submit",
-      "label": "encoder 2 click → submit"
+      "action": "layer_toggle",
+      "label": "encoder 2 click → edit layer (auto-exits 1.5s after last twist)",
+      "layer": "edit",
+      "timeoutMs": 1500
     },
     "enc2.turn": {
       "action": "effort",
       "label": "encoder 2 turn → effort",
+      "layers": {
+        "edit": {
+          "action": "turn",
+          "ccw": "Backspace",
+          "cw": "Right",
+          "label": "edit layer: ccw deletes a char per detent, cw walks cursor right"
+        }
+      },
       "mode": "absolute"
     },
     "enc3.turn": {
@@ -42,11 +52,26 @@
     "kb.w13": {
       "action": "effort_command"
     },
+    "key_audio": {
+      "action": "key",
+      "chord": "C-u",
+      "label": "audio → kill to line start (nuke the draft)"
+    },
+    "key_bar": {
+      "action": "key",
+      "chord": "C-y",
+      "label": "bar → yank back what was killed (undo delete)"
+    },
     "key_com": {
       "action": "key",
       "chord": "Backspace",
       "label": "com → backspace",
       "repeat": true
+    },
+    "key_seq": {
+      "action": "key",
+      "chord": "C-w",
+      "label": "seq → delete word (readline kill; push per word)"
     },
     "transport.play": {
       "action": "submit",

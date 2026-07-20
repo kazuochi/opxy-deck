@@ -71,6 +71,7 @@ The main volume knob transmits nothing (stays hardware volume).
 | `effort_command` | — | Types `/effort` + Enter |
 | `thinking_toggle` | — | Option+T (≡ `key "M-t"`) |
 | `nop` | — | Explicit do-nothing (logs). Useful as a per-agent override for a verb an agent lacks |
+| `layer_toggle` | `layer` | Latches the named layer on/off with a chime (Tink/Bottle). While active, entries with a matching `layers` key behave as that variant — see §Layers |
 
 **Knob actions** (CC encoders; fire per detent):
 
@@ -104,6 +105,30 @@ action**, so don't put knob actions on buttons or vice versa (`--check` catches 
   one deliberate difference from hardware key-repeat.
 - On other actions `repeat` is ignored with a `--check` warning. Knob `turn`
   entries repeat per detent by nature and don't take this flag.
+
+### Layers (`layer_toggle` + per-entry `layers`, optional)
+
+A latched mode that re-purposes controls — toggle, not hold, because outside the
+transport keys the OP-XY sends press+release together (bench truth). The bundled
+profiles use it for **edit mode**: click encoder 2 → its turn becomes a word-eater
+(readline kill/yank); click again → effort knob returns.
+
+```jsonc
+"enc2.click": { "action": "layer_toggle", "layer": "edit", "timeoutMs": 1500 },
+"enc2.turn":  { "action": "effort",
+                "layers": { "edit": { "action": "turn", "cw": "Right", "ccw": "Backspace" } } }
+```
+
+`timeoutMs` (optional) auto-drops the layer that long after its **last variant
+use** — click, twist, stop, and the layer chimes itself off; no closing click.
+Omit it for a persistent latch (click on / click off).
+
+- Any key/button/knob entry may carry `layers`: while layer *N* is active, the
+  entry behaves as `layers.N`. Knob variants take knob actions (inherit
+  mode/invert from the base unless set); key variants take key/button actions.
+- A layer variant wins over per-agent routing; variants can't nest layers or
+  toggle one. A profile switch drops all active layers.
+- Feedback is audible (no screen): Tink = layer on, Bottle = off.
 
 ### Per-agent routing (`agents` + `detect`, optional)
 

@@ -43,6 +43,9 @@ struct ProfileEntryJ: Codable {
     var repeatDelayMs: Int? = nil
     var repeatRateMs: Int? = nil
     var style: String? = nil
+    var layer: String? = nil
+    var layers: [String: ProfileEntryJ]? = nil
+    var timeoutMs: Int? = nil
 }
 struct ProfileFileJ: Codable {
     let app: String?; let chime: String?; var controls: [String: ProfileEntryJ]
@@ -799,7 +802,7 @@ final class Store: ObservableObject {
                     invert: isTurnSlot(slot) ? (a.invert ? true : nil) : raw.invert,
                     note: raw.note, cc: raw.cc, label: raw.label,
                     repeat: raw.`repeat`, repeatDelayMs: raw.repeatDelayMs, repeatRateMs: raw.repeatRateMs,
-                    style: raw.style)
+                    style: raw.style, layer: raw.layer, layers: raw.layers, timeoutMs: raw.timeoutMs)
                 continue
             }
             let isKnob = isTurnSlot(slot)
