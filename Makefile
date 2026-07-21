@@ -41,11 +41,12 @@ opxy-mapper: OpxyMapper.swift
 # grant survives rebuilds; fall back to ad-hoc, whose identity dies every rebuild.
 SIGN_ID := $(shell security find-identity -v -p codesigning 2>/dev/null | grep -q opxy-deck-dev && echo opxy-deck-dev || echo -)
 
-opxy-mapper.app: opxy-mapper Info.plist
+opxy-mapper.app: opxy-mapper Info.plist assets/AppIcon.icns
 	rm -rf opxy-mapper.app
-	mkdir -p opxy-mapper.app/Contents/MacOS
+	mkdir -p opxy-mapper.app/Contents/MacOS opxy-mapper.app/Contents/Resources
 	cp Info.plist opxy-mapper.app/Contents/Info.plist
 	cp opxy-mapper opxy-mapper.app/Contents/MacOS/opxy-mapper
+	cp assets/AppIcon.icns opxy-mapper.app/Contents/Resources/AppIcon.icns
 	codesign -s "$(SIGN_ID)" --force opxy-mapper.app 2>/dev/null || codesign -s - --force opxy-mapper.app 2>/dev/null || true
 ifeq ($(SIGN_ID),-)
 	@echo ""

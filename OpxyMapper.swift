@@ -92,7 +92,7 @@ let GRID_ROWY: [Double] = [11.77, 51.80, 91.61, 131.42, 171.21, 211.01, 250.81]
 
 // Dropdown groups. General = works in any app; Claude = Claude Code semantics.
 // Commands/skills are presentation-only tags over plain type entries (see displayAction).
-let GENERAL_ACTIONS = ["none", "type", "key", "shell", "submit", "esc", "profile_cycle"]
+let GENERAL_ACTIONS = ["none", "type", "key", "shell", "submit", "esc", "profile_cycle", "nop"]
 let CLAUDE_ACTIONS = ["ptt", "model_picker", "effort_command", "thinking_toggle"]
 let KEY_ACTIONS = GENERAL_ACTIONS + CLAUDE_ACTIONS   // engine vocabulary, unchanged
 let BUILTIN_COMMANDS = ["compact", "clear", "resume"]  // common Claude Code slash commands
@@ -824,6 +824,137 @@ final class Store: ObservableObject {
         status = "pasted \(e.action) from \(clipboardFrom ?? "?") onto \(control(for: slot)?.name ?? slot)"
     }
 
+    // MARK: Per-agent variants (entry-level "agents" — see MAPPING-SCHEMA §Per-agent routing)
+
+    @Published var expandedAgent: String?      // which agent chip's editor is open (per selected slot)
+    @Published var liveAgentLabels: [String] = []   // herdr's current agent labels, fetched on demand
+
+    /// The slot's full entry, synthesized from its Assign if the GUI authored it
+    /// this session and no save has run yet.
+    private func ensureRaw(_ slot: String) -> ProfileEntryJ {
+        if let r = rawEntries[slot] { return r }
+        let a = assigns[slot] ?? Assign()
+        return ProfileEntryJ(
+            action: a.action,
+            text: a.action == "type" ? a.command : nil,
+            chord: a.action == "key" ? a.command : nil,
+            keys: nil, cw: nil, ccw: nil,
+            command: a.action == "shell" ? a.command : nil,
+            mode: isTurnSlot(slot) ? "absolute" : nil,
+            invert: a.invert ? true : nil,
+            note: nil, cc: nil, label: nil)
+    }
+
+    func agentVariants(_ slot: String) -> [String: ProfileEntryJ] {
+        rawEntries[slot]?.agents ?? [:]
+    }
+
+    /// Mutate one variant in place. No-ops (never resurrects) if the variant has
+    /// vanished — e.g. /deck deleted it and the 0.7 s watcher reloaded while the
+    /// editor was open with a focused TextField.
+    func mutateAgentVariant(_ slot: String, _ label: String, _ body: (inout ProfileEntryJ) -> Void) {
+        guard var raw = rawEntries[slot], var v = raw.agents?[label] else { return }
+        body(&v)
+        raw.agents?[label] = v
+        rawEntries[slot] = raw
+        markDirty()
+    }
+
+    func addAgentVariant(_ slot: String, label: String) {
+        var raw = ensureRaw(slot)
+        guard raw.agents?[label] == nil else { expandedAgent = label; return }
+        // Seed from the base entry, stripped to what a variant may carry: variants
+        // can't nest layers/agents, can't be layer_toggle/profile_cycle, and knob
+        // payload forms don't apply (agents are hidden on turns).
+        let act = ["layer_toggle", "profile_cycle"].contains(raw.action) ? "nop" : raw.action
+        let seed = ProfileEntryJ(
+            action: act,
+            text: act == raw.action ? raw.text : nil,
+            chord: act == raw.action ? raw.chord : nil,
+            keys: act == raw.action ? raw.keys : nil,
+            cw: nil, ccw: nil,
+            command: act == raw.action ? raw.command : nil,
+            mode: nil, invert: nil, note: nil, cc: nil, label: nil,
+            repeat: raw.`repeat`, repeatDelayMs: raw.repeatDelayMs, repeatRateMs: raw.repeatRateMs,
+            style: raw.style)
+        raw.agents = (raw.agents ?? [:]).merging([label: seed]) { _, new in new }
+        rawEntries[slot] = raw
+        expandedAgent = label
+        markDirty()
+        status = "added \(label) override on \(control(for: slot)?.name ?? slot)"
+    }
+
+    func removeAgentVariant(_ slot: String, label: String) {
+        guard var raw = rawEntries[slot], raw.agents?[label] != nil else { return }
+        raw.agents?.removeValue(forKey: label)
+        if raw.agents?.isEmpty == true { raw.agents = nil }
+        rawEntries[slot] = raw
+        if expandedAgent == label { expandedAgent = nil }
+        markDirty()
+        status = "removed \(label) override from \(control(for: slot)?.name ?? slot)"
+    }
+
+    func removeLayerVariant(_ slot: String, name: String) {
+        guard var raw = rawEntries[slot], raw.layers?[name] != nil else { return }
+        raw.layers?.removeValue(forKey: name)
+        if raw.layers?.isEmpty == true { raw.layers = nil }
+        rawEntries[slot] = raw
+        markDirty()
+        status = "removed \(name) layer variant from \(control(for: slot)?.name ?? slot)"
+    }
+
+    /// Agent labels worth offering in "+ agent": herdr's live fleet, plus every label
+    /// already used anywhere in this profile. Typed-by-hand labels silently never
+    /// match at press time, so harvesting beats freeform.
+    func candidateAgentLabels(excluding existing: Set<String>) -> [String] {
+        var labels = Set(liveAgentLabels)
+        labels.formUnion((profileAgents ?? [:]).keys)
+        for e in rawEntries.values { labels.formUnion((e.agents ?? [:]).keys) }
+        for e in preserved.values { labels.formUnion((e.agents ?? [:]).keys) }
+        return labels.subtracting(existing).sorted()
+    }
+
+    /// Labels the profile-level `agents` section routes for a given base action —
+    /// shown as a caption so an empty chips row never lies about routing.
+    func profileLevelRoutes(for action: String) -> [String] {
+        (profileAgents ?? [:]).compactMap { $0.value[action] != nil ? $0.key : nil }.sorted()
+    }
+
+    func fetchLiveAgentLabels() {
+        let profileNames = availableProfiles()
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            var labels = Set<String>()
+            // Live herdr fleet — labels of agents actually running right now.
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/bin/sh")
+            p.arguments = ["-c", "PATH=\"$PATH:/opt/homebrew/bin:/usr/local/bin\" herdr agent list"]
+            let pipe = Pipe(); p.standardOutput = pipe; p.standardError = FileHandle.nullDevice
+            if (try? p.run()) != nil {
+                p.waitUntilExit()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let result = obj["result"] as? [String: Any],
+                   let agents = result["agents"] as? [[String: Any]] {
+                    labels.formUnion(agents.compactMap { $0["agent"] as? String })
+                }
+            }
+            // Every label ANY profile on disk routes — so "codex" is offered in the
+            // claude-code profile because herdr.json knows it, no Codex pane needed.
+            for name in profileNames {
+                guard let d = try? Data(contentsOf: self.profileURL(name)),
+                      let prof = try? JSONDecoder().decode(ProfileFileJ.self, from: d) else { continue }
+                labels.formUnion((prof.agents ?? [:]).keys)
+                for e in prof.controls.values { labels.formUnion((e.agents ?? [:]).keys) }
+            }
+            let sorted = labels.sorted()
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.liveAgentLabels != sorted else { return }  // change-guarded (menu stability)
+                self.liveAgentLabels = sorted
+            }
+        }
+    }
+
     /// Remove a control's mapping entirely (assignment + any agent-authored payload
     /// we were preserving). Autosave then writes the profile without the entry.
     func clearAssign(_ slot: String) {
@@ -862,16 +993,26 @@ final class Store: ObservableObject {
                 continue
             }
             let isKnob = isTurnSlot(slot)
-            controls[slot] = ProfileEntryJ(
+            // Re-authored entry: the payload-form fields of the OLD action (keys/cw/ccw)
+            // don't carry, but everything orthogonal to action+payload MUST — repeat,
+            // ptt style, layers, timeoutMs, per-agent variants. Dropping them here was
+            // the "GUI edit silently strips agent-authored routing" data-loss bug.
+            let raw = rawEntries[slot]
+            let authored = ProfileEntryJ(
                 action: a.action,
                 text: a.action == "type" ? a.command : nil,
                 chord: a.action == "key" ? a.command : nil,
                 keys: nil, cw: nil, ccw: nil,
                 command: a.action == "shell" ? a.command : nil,
-                mode: isKnob ? (rawEntries[slot]?.mode ?? "absolute") : nil,
+                mode: isKnob ? (raw?.mode ?? "absolute") : nil,
                 invert: isKnob && a.invert ? true : nil,
                 note: nil, cc: nil,   // slot ids are census names; the bridge resolves them
-                label: nil)
+                label: nil,
+                repeat: raw?.`repeat`, repeatDelayMs: raw?.repeatDelayMs, repeatRateMs: raw?.repeatRateMs,
+                style: raw?.style, layer: raw?.layer, layers: raw?.layers, timeoutMs: raw?.timeoutMs,
+                agents: raw?.agents)
+            controls[slot] = authored
+            rawEntries[slot] = authored   // keep raw fresh — variant seeding/copy reads it
         }
         let url = profileURL(profileName)
         try? FileManager.default.createDirectory(
@@ -886,26 +1027,42 @@ final class Store: ObservableObject {
             saveIdents()
             dirty = false
             let verb = auto ? "auto-saved" : "saved"
-            status = "\(verb) \(profileName) (\(controls.count) controls)\(checkVerdict(url))"
+            setStatus("\(verb) \(profileName) (\(controls.count) controls)")
             print("\(verb) \(url.path): \(controls.count) controls")
+            checkVerdictAsync(url, prefix: "\(verb) \(profileName) (\(controls.count) controls)")
         } catch { status = "SAVE FAILED: \(error.localizedDescription)" }
     }
 
-    // Validate with the engine's own checker so GUI saves get the same gate as agent edits.
-    private func checkVerdict(_ url: URL) -> String {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: dir + "/opxy-bridge")
-        p.arguments = ["--check", url.path]
-        let pipe = Pipe(); p.standardOutput = pipe; p.standardError = pipe
-        guard (try? p.run()) != nil else { return "" }   // no bridge binary → skip
-        p.waitUntilExit()
-        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        if p.terminationStatus == 0 {
-            let warns = out.split(separator: "\n").filter { $0.hasPrefix("warning") }.count
-            return warns > 0 ? " — check OK, \(warns) warning(s), see console" : " — check OK"
+    // Assign @Published status only on real change — an identical reassign still fires
+    // objectWillChange, and every re-render tears down any open AppKit Menu (the same
+    // disease the 0.7 s watcher was cured of; autosave at 0.4 s is an even hotter path).
+    private func setStatus(_ s: String) {
+        if status != s { status = s }
+    }
+
+    // Validate with the engine's own checker so GUI saves get the same gate as agent
+    // edits — off the main thread: waitUntilExit on main blocked the UI for the length
+    // of a --check on every 0.4 s autosave, a visible hitch while typing.
+    private func checkVerdictAsync(_ url: URL, prefix: String) {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: self.dir + "/opxy-bridge")
+            p.arguments = ["--check", url.path]
+            let pipe = Pipe(); p.standardOutput = pipe; p.standardError = pipe
+            guard (try? p.run()) != nil else { return }   // no bridge binary → skip
+            p.waitUntilExit()
+            let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            let verdict: String
+            if p.terminationStatus == 0 {
+                let warns = out.split(separator: "\n").filter { $0.hasPrefix("warning") }.count
+                verdict = warns > 0 ? " — check OK, \(warns) warning(s), see console" : " — check OK"
+            } else {
+                let firstErr = out.split(separator: "\n").first(where: { $0.hasPrefix("error") }) ?? "see console"
+                verdict = " — CHECK FAILED: \(firstErr)"
+            }
+            DispatchQueue.main.async { self.setStatus(prefix + verdict) }
         }
-        let firstErr = out.split(separator: "\n").first(where: { $0.hasPrefix("error") }) ?? "see console"
-        return " — CHECK FAILED: \(firstErr)"
     }
 }
 
@@ -1080,7 +1237,11 @@ struct FlowLayout: Layout {
         var rows: [[(Subviews.Element, CGSize)]] = [[]]
         var x: CGFloat = 0
         for v in subviews {
-            let s = v.sizeThatFits(.unspecified)
+            var s = v.sizeThatFits(.unspecified)
+            if s.width > maxW {   // wider than the container: re-measure constrained, don't clip
+                s = v.sizeThatFits(ProposedViewSize(width: maxW, height: nil))
+                s.width = min(s.width, maxW)
+            }
             if x > 0 && x + s.width > maxW { rows.append([]); x = 0 }
             rows[rows.count - 1].append((v, s))
             x += s.width + hSpacing
@@ -1115,6 +1276,258 @@ struct FlowLayout: Layout {
     }
 }
 
+// MARK: - Entry editing components (shared by the base row and agent-variant editors)
+
+// Grouped action picker over an (action, payload) pair. The skill:/cmd: display
+// tags are view-layer only — the stored schema stays plain `type` entries.
+struct ActionMenuView: View {
+    @ObservedObject var store: Store
+    let isTurn: Bool
+    var excluded: Set<String> = []   // context filter: variants can't be none/profile_cycle
+    @Binding var action: String
+    @Binding var payload: String
+
+    var body: some View {
+        let current: String = {
+            if action == "type", payload.hasPrefix("/"), payload.hasSuffix("\n") {
+                let name = String(payload.dropFirst().dropLast())
+                if store.userSkills.contains(name) { return "skill:" + name }
+                if store.userCommands.contains(name) { return "cmd:" + name }
+            }
+            return action
+        }()
+        let currentLabel = current.hasPrefix("skill:") ? "/" + current.dropFirst(6)
+                         : current.hasPrefix("cmd:")   ? "/" + current.dropFirst(4)
+                         : current
+        let pick = { (v: String) in
+            if let name = v.split(separator: ":", maxSplits: 1).last,
+               v.hasPrefix("skill:") || v.hasPrefix("cmd:") {
+                action = "type"; payload = "/" + name + "\n"
+            } else {
+                action = v
+            }
+        }
+        let item = { (label: String, tag: String) -> AnyView in
+            AnyView(Button((tag == current ? "✓ " : "") + label) { pick(tag) })
+        }
+        Menu {
+            if isTurn {
+                ForEach(KNOB_ACTIONS.filter { !excluded.contains($0) }, id: \.self) { a in item(a, a) }
+            } else {
+                Menu("general") {
+                    ForEach(GENERAL_ACTIONS.filter { !excluded.contains($0) }, id: \.self) { a in item(a, a) }
+                }
+                Menu("claude code") {
+                    ForEach(CLAUDE_ACTIONS, id: \.self) { a in item(a, a) }
+                }
+                if !store.userCommands.isEmpty {
+                    Menu("commands") {
+                        ForEach(store.userCommands, id: \.self) { c in item("/" + c, "cmd:" + c) }
+                    }
+                }
+                if !store.userSkills.isEmpty {
+                    Menu("skills") {
+                        ForEach(store.userSkills, id: \.self) { s in item("/" + s, "skill:" + s) }
+                    }
+                }
+            }
+        } label: {
+            Text(currentLabel).frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(width: 180)
+    }
+}
+
+struct PayloadFieldView: View {
+    let action: String
+    @Binding var text: String
+
+    var body: some View {
+        if ["shell", "type", "key"].contains(action) {
+            // For `type`, the field speaks the placeholder's language: typing \n stores a
+            // real newline (= Enter to the engine), displayed back as \n. Without this a
+            // hand-typed "/review\n" stored literal backslash-n and typed it into the pane.
+            let bound = action == "type"
+                ? Binding(get: { text.replacingOccurrences(of: "\n", with: "\\n") },
+                          set: { text = $0.replacingOccurrences(of: "\\n", with: "\n") })
+                : $text
+            TextField(action == "shell" ? "shell command…"
+                      : action == "type" ? "text to type… (\\n = Enter)"
+                      : "key chord… (M-t, C-c, Enter, S-Left)",
+                      text: bound)
+                .textFieldStyle(.roundedBorder).font(.system(size: 11, design: .monospaced))
+                .frame(minWidth: 200, maxWidth: 340)
+        }
+    }
+}
+
+// Editor for one agent variant of one control (key/button context only — the
+// bridge ignores per-entry agents on knob turns). Bindings no-op when the
+// variant has vanished under a foreign reload: a focused TextField must never
+// resurrect a variant /deck just deleted.
+struct AgentVariantEditor: View {
+    @ObservedObject var store: Store
+    let slot: String
+    let label: String
+
+    private var entry: ProfileEntryJ? { store.agentVariants(slot)[label] }
+
+    var body: some View {
+        if let e = entry {
+            let action = Binding<String>(
+                get: { entry?.action ?? "nop" },
+                set: { v in store.mutateAgentVariant(slot, label) { r in
+                    r = ProfileEntryJ(action: v,
+                                      text: v == r.action ? r.text : nil,
+                                      chord: v == r.action ? r.chord : nil,
+                                      keys: v == r.action ? r.keys : nil,
+                                      cw: nil, ccw: nil,
+                                      command: v == r.action ? r.command : nil,
+                                      mode: nil, invert: nil, note: nil, cc: nil, label: nil,
+                                      repeat: r.`repeat`, repeatDelayMs: r.repeatDelayMs,
+                                      repeatRateMs: r.repeatRateMs, style: r.style)
+                } })
+            let payload = Binding<String>(
+                get: { let e = entry; return e?.command ?? e?.text ?? e?.chord ?? "" },
+                set: { v in store.mutateAgentVariant(slot, label) { r in
+                    switch r.action {
+                    case "type":  r = replacingPayload(r, text: v, chord: nil, command: nil)
+                    case "key":   r = replacingPayload(r, text: nil, chord: v, command: nil)
+                    case "shell": r = replacingPayload(r, text: nil, chord: nil, command: v)
+                    default: break
+                    }
+                } })
+            HStack(spacing: 10) {
+                Text("\(label):").font(.caption).bold()
+                ActionMenuView(store: store, isTurn: false,
+                               excluded: ["none", "profile_cycle"],   // bridge-invalid / nonsensical as variants
+                               action: action, payload: payload)
+                if e.keys != nil {
+                    // chord sequences are /deck-authored; editing the single-chord field
+                    // alongside a surviving keys array would create an ambiguous entry
+                    Text("keys: \(e.keys!.joined(separator: " "))")
+                        .font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
+                } else {
+                    PayloadFieldView(action: e.action, text: payload)
+                }
+                if e.action == "ptt" {
+                    Picker("", selection: Binding(
+                        get: { entry?.style ?? "tap" },
+                        set: { v in store.mutateAgentVariant(slot, label) { $0.style = v } }
+                    )) {
+                        Text("tap").tag("tap"); Text("hold").tag("hold")
+                    }
+                    .pickerStyle(.segmented).frame(width: 110)
+                    .help("hold pairs with /voice hold (dictate into a drafted prompt); Codex is hold-to-dictate")
+                }
+                Button("✕") { store.removeAgentVariant(slot, label: label) }
+                    .font(.caption)
+                    .help("Remove this agent's override — the base mapping applies again")
+            }
+        }
+    }
+}
+
+// Rebuild an entry with a new payload, clearing the other payload forms.
+private func replacingPayload(_ r: ProfileEntryJ, text: String?, chord: String?, command: String?) -> ProfileEntryJ {
+    ProfileEntryJ(action: r.action, text: text, chord: chord, keys: nil,
+                  cw: nil, ccw: nil, command: command,
+                  mode: nil, invert: nil, note: nil, cc: nil, label: nil,
+                  repeat: r.`repeat`, repeatDelayMs: r.repeatDelayMs, repeatRateMs: r.repeatRateMs,
+                  style: r.style)
+}
+
+// Chips row: which agents override this control, expand-to-edit, harvested "+ agent".
+struct AgentChipsRow: View {
+    @ObservedObject var store: Store
+    let slot: String
+    let baseAction: String
+    @State private var customLabel = ""
+    @State private var showCustom = false
+
+    var body: some View {
+        let variants = store.agentVariants(slot)
+        VStack(alignment: .leading, spacing: 6) {
+            FlowLayout(hSpacing: 8, vSpacing: 6) {
+                Text("agents:").font(.caption).foregroundColor(.secondary)
+                ForEach(variants.keys.sorted(), id: \.self) { label in
+                    Button("\(store.expandedAgent == label ? "▾" : "▸") \(label): \(summary(variants[label]))") {
+                        store.expandedAgent = store.expandedAgent == label ? nil : label
+                    }
+                    .font(.caption)
+                }
+                Menu("+ agent") {
+                    ForEach(store.candidateAgentLabels(excluding: Set(variants.keys)), id: \.self) { l in
+                        Button(l) { store.addAgentVariant(slot, label: l) }
+                    }
+                    Divider()
+                    Button("custom…") { showCustom = true }
+                }
+                .font(.caption).frame(width: 90)
+                .help("Override what this key does in a specific agent's pane. Labels come from herdr's live fleet + this profile — typed labels that don't match a herdr agent never fire.")
+                if showCustom {
+                    TextField("agent label", text: $customLabel)
+                        .textFieldStyle(.roundedBorder).font(.caption).frame(width: 110)
+                    Button("add") {
+                        let l = customLabel.trimmingCharacters(in: .whitespaces)
+                        if !l.isEmpty { store.addAgentVariant(slot, label: l) }
+                        customLabel = ""; showCustom = false
+                    }
+                    .font(.caption)
+                }
+                let routed = store.profileLevelRoutes(for: baseAction)
+                if !routed.isEmpty {
+                    Text("also routed via profile agents section for: \(routed.joined(separator: ", ")) (entry-level wins)")
+                        .font(.caption2).foregroundColor(.secondary.opacity(0.8))
+                }
+            }
+            if let x = store.expandedAgent, variants[x] != nil {
+                AgentVariantEditor(store: store, slot: slot, label: x)
+            }
+        }
+        .onAppear { store.fetchLiveAgentLabels() }
+    }
+
+    private func summary(_ e: ProfileEntryJ?) -> String {
+        guard let e else { return "" }
+        let p = (e.command ?? e.text ?? e.chord ?? "").replacingOccurrences(of: "\n", with: "⏎")
+        return p.isEmpty ? e.action : "\(e.action) \(p.prefix(18))"
+    }
+}
+
+// Read-only layer chips: visibility + remove. Authoring a layer spans two entries
+// (the toggle + the variant) and stays a /deck conversation by design.
+struct LayerChipsRow: View {
+    @ObservedObject var store: Store
+    let slot: String
+
+    var body: some View {
+        if let layers = store.rawEntries[slot]?.layers, !layers.isEmpty {
+            FlowLayout(hSpacing: 8, vSpacing: 6) {
+                Text("layers:").font(.caption).foregroundColor(.secondary)
+                ForEach(layers.keys.sorted(), id: \.self) { name in
+                    HStack(spacing: 4) {
+                        Text("\(name): \(summary(layers[name]))")
+                            .font(.caption).foregroundColor(.secondary)
+                        Button("✕") { store.removeLayerVariant(slot, name: name) }
+                            .font(.caption2)
+                            .help("Remove this layer variant (the layer_toggle key stays; edit layers via /deck)")
+                    }
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Color(white: 0.16)).cornerRadius(4)
+                }
+            }
+        }
+    }
+
+    private func summary(_ e: ProfileEntryJ?) -> String {
+        guard let e else { return "" }
+        if e.action == "turn" { return "turn ⟲\(e.ccw ?? "?") ⟳\(e.cw ?? "?")" }
+        let p = (e.command ?? e.text ?? e.chord ?? "").replacingOccurrences(of: "\n", with: "⏎")
+        return p.isEmpty ? e.action : "\(e.action) \(p.prefix(14))"
+    }
+}
+
 // MARK: - Detail panel
 
 struct DetailPanel: View {
@@ -1125,6 +1538,12 @@ struct DetailPanel: View {
     var body: some View {
         Group {
             if let slot = store.selected, let c = store.control(for: slot) {
+                let isPot: Bool = { if case .pot = c.family { return true }; return false }()
+                let effSlot: String = {
+                    if case .encoder = c.family { return c.id + (encSlotIsClick ? ".click" : ".turn") }
+                    return c.id
+                }()
+                VStack(alignment: .leading, spacing: 8) {
                 FlowLayout(hSpacing: 14, vSpacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(c.name).font(.headline)
@@ -1133,7 +1552,7 @@ struct DetailPanel: View {
                 .frame(width: 195, alignment: .leading)
                 Divider().frame(height: 40)
 
-                if case .pot = c.family {
+                if isPot {
                     Text("Sends no MIDI in controller mode — stays the OP-XY's own hardware volume (the dial for future status sounds).")
                         .font(.caption).foregroundColor(.secondary)
                 } else {
@@ -1145,10 +1564,6 @@ struct DetailPanel: View {
                         .frame(width: 130)
                         .onChange(of: encSlotIsClick) { v in store.selected = c.id + (v ? ".click" : ".turn") }
                     }
-                    let effSlot = { () -> String in
-                        if case .encoder = c.family { return c.id + (encSlotIsClick ? ".click" : ".turn") }
-                        return c.id
-                    }()
                     VStack(alignment: .leading, spacing: 3) {
                         Text(store.idents[effSlot]?.text ?? "identity unknown")
                             .font(.caption).foregroundColor(store.idents[effSlot] == nil ? .orange : .secondary)
@@ -1164,72 +1579,30 @@ struct DetailPanel: View {
                         get: { store.assigns[effSlot] ?? Assign() },
                         set: { store.assigns[effSlot] = $0; store.markDirty() }
                     )
-                    // Selection is a view-layer string: plain actions pass through;
-                    // "skill:<n>" / "cmd:<n>" choices write Assign(type, "/<n>\n"), and a
-                    // type entry whose text is "/<known name>\n" displays back under its
-                    // group (skills win a name clash). The stored schema stays plain type.
-                    let displayAction = Binding<String>(
-                        get: {
-                            let a = binding.wrappedValue
-                            if a.action == "type", a.command.hasPrefix("/"), a.command.hasSuffix("\n") {
-                                let name = String(a.command.dropFirst().dropLast())
-                                if store.userSkills.contains(name) { return "skill:" + name }
-                                if store.userCommands.contains(name) { return "cmd:" + name }
-                            }
-                            return a.action
-                        },
-                        set: { v in
-                            var a = binding.wrappedValue
-                            if let name = v.split(separator: ":", maxSplits: 1).last,
-                               v.hasPrefix("skill:") || v.hasPrefix("cmd:") {
-                                a.action = "type"; a.command = "/" + name + "\n"
-                            } else {
-                                a.action = v
-                            }
-                            binding.wrappedValue = a
-                        })
-                    // Columns-style menu: groups are submenus that expand on hover.
-                    let current = displayAction.wrappedValue
-                    let currentLabel = current.hasPrefix("skill:") ? "/" + current.dropFirst(6)
-                                     : current.hasPrefix("cmd:")   ? "/" + current.dropFirst(4)
-                                     : current
-                    let item = { (label: String, tag: String) -> AnyView in
-                        AnyView(Button((tag == current ? "✓ " : "") + label) {
-                            displayAction.wrappedValue = tag
-                        })
-                    }
-                    Menu {
-                        if isTurn {
-                            ForEach(KNOB_ACTIONS, id: \.self) { a in item(a, a) }
-                        } else {
-                            Menu("general") {
-                                ForEach(GENERAL_ACTIONS, id: \.self) { a in item(a, a) }
-                            }
-                            Menu("claude code") {
-                                ForEach(CLAUDE_ACTIONS, id: \.self) { a in item(a, a) }
-                            }
-                            if !store.userCommands.isEmpty {
-                                Menu("commands") {
-                                    ForEach(store.userCommands, id: \.self) { c in item("/" + c, "cmd:" + c) }
-                                }
-                            }
-                            if !store.userSkills.isEmpty {
-                                Menu("skills") {
-                                    ForEach(store.userSkills, id: \.self) { s in item("/" + s, "skill:" + s) }
-                                }
-                            }
-                        }
-                    } label: {
-                        Text(currentLabel).frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(width: 180)
-                    if ["shell", "type", "key"].contains(binding.wrappedValue.action) {
-                        TextField(binding.wrappedValue.action == "shell" ? "shell command…"
-                                  : binding.wrappedValue.action == "type" ? "text to type… (\\n = Enter)"
-                                  : "key chord… (M-t, C-c, Enter, S-Left)",
-                                  text: binding.command)
-                            .textFieldStyle(.roundedBorder).font(.system(size: 11, design: .monospaced))
-                            .frame(minWidth: 200, maxWidth: 340)
+                    ActionMenuView(
+                        store: store, isTurn: isTurn,
+                        excluded: [],
+                        action: Binding(get: { binding.wrappedValue.action },
+                                        set: { v in
+                                            // "none" on an entry with variants would wipe them from the
+                                            // file (a none entry can't be written) — force the explicit path.
+                                            let raw = store.rawEntries[effSlot]
+                                            if v == "none", (raw?.agents?.isEmpty == false || raw?.layers?.isEmpty == false) {
+                                                store.status = "\(c.name) has agent/layer variants — use clear to remove everything, or ✕ the variants first"
+                                                return
+                                            }
+                                            var a = binding.wrappedValue; a.action = v; binding.wrappedValue = a
+                                        }),
+                        payload: Binding(get: { binding.wrappedValue.command },
+                                         set: { var a = binding.wrappedValue; a.command = $0; binding.wrappedValue = a }))
+                    if binding.wrappedValue.action == "key", let ks = store.rawEntries[effSlot]?.keys {
+                        // chord sequences are /deck-authored; the empty chord field used to
+                        // invite a keystroke that silently replaced the whole sequence
+                        Text("keys: \(ks.joined(separator: " "))")
+                            .font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
+                            .help("A chord sequence (edit via /deck — typing here would replace it)")
+                    } else {
+                        PayloadFieldView(action: binding.wrappedValue.action, text: binding.command)
                     }
                     if isTurn {
                         Toggle("invert", isOn: binding.invert).font(.caption)
@@ -1239,10 +1612,10 @@ struct DetailPanel: View {
                     if binding.wrappedValue.action != "none" || store.rawEntries[effSlot] != nil {
                         Button("clear") { store.clearAssign(effSlot) }
                             .font(.caption)
-                            .help("Remove this control's mapping from the profile")
+                            .help("Remove this control's mapping from the profile — including any agent/layer variants")
                         Button("copy") { store.copyAssign(effSlot) }
                             .font(.caption)
-                            .help("Copy this mapping — payload plus repeat/style/layers — then select another control and paste")
+                            .help("Copy this mapping — payload plus repeat/style/layers/agents — then select another control and paste")
                     }
                     if store.clipboard != nil {
                         Button("paste ⤶ \(store.clipboardFrom ?? "")") { store.pasteAssign(to: effSlot) }
@@ -1251,6 +1624,18 @@ struct DetailPanel: View {
                     }
                 }
                 }
+                // Variant rows. Agents: key/button/click context only — the bridge
+                // ignores per-entry agents on knob turns. Layers: read-only chips.
+                if !isPot, !store.isTurnSlot(effSlot),
+                   (store.assigns[effSlot]?.action ?? "none") != "none" {
+                    AgentChipsRow(store: store, slot: effSlot,
+                                  baseAction: store.assigns[effSlot]?.action ?? "")
+                }
+                if !isPot, (store.assigns[effSlot]?.action ?? "none") != "none" {
+                    LayerChipsRow(store: store, slot: effSlot)
+                }
+                }
+                .onChange(of: effSlot) { _ in store.expandedAgent = nil }
             } else {
                 HStack {
                     Spacer()

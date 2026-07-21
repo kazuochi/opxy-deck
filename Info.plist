@@ -5,7 +5,9 @@
 	<key>CFBundleIdentifier</key>
 	<string>dev.kaz.opxy-mapper</string>
 	<key>CFBundleName</key>
-	<string>OP-XY Deck Mapper</string>
+	<string>opxy-deck</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleExecutable</key>
 	<string>opxy-mapper</string>
 	<key>CFBundlePackageType</key>

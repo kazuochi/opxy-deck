@@ -13,8 +13,8 @@ Codex Micro validated — on richer hardware you may already own, for $0.
 
 MIT licensed. Not affiliated with teenage engineering; OP-XY is their trademark
 and their excellent hardware — this is community software for it. The GUI's
-panel artwork (`assets/opxy.svg`) is TE's design, included for the mapper skin
-and removed immediately on request.
+panel artwork (`assets/opxy.svg`) is TE's design, included for the mapper skin;
+the app icon derives from it (module key 9). Both removed immediately on request.
 
 ```
 OP-XY (controller mode) ──USB/BLE──▶ receivemidi ─▶ opxy-bridge ─▶ keystrokes ─▶ focused app
