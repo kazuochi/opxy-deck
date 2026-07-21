@@ -156,6 +156,19 @@ name** when the focused pane's agent label matches:
 - Override values use the normal entry schema (any key/button action + payload);
   knob actions can't be overridden (knobs stay universal).
 
+**Per-entry form** — for keys where routing by action name can't work (every
+slash-command key is the same `type` action), an entry carries its own `agents`:
+
+```jsonc
+"kb.w12": { "action": "type", "text": "/effort\n",
+            "agents": { "codex": { "action": "type", "text": "/model\n" } } }
+```
+
+Resolution order per press: **layer variant → entry-level agent override →
+profile-level action override → base.** Design intent: the engine ships routing
+as a primitive; which agents exist and what each key does per agent is entirely
+profile JSON — adding an agent never needs a code change.
+
 ### Chord syntax (`key`, `turn`, `keys`)
 
 `[mods-]key` — modifiers `M` (Option/Alt), `C` (Ctrl), `S` (Shift), `Cmd` (macOS only,

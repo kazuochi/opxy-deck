@@ -113,6 +113,11 @@ struct EntryJ: Codable {
     // (chimes on expiry). Bench truth behind the design: only transport keys report
     // holds, so "hold-to-keep-a-mode" is impossible — timeout gives click-twist-done.
     var timeoutMs: Int? = nil
+    // Per-ENTRY agent override (key/button entries): when the focused pane's agent
+    // label matches, this control behaves as the variant. Complements the profile-level
+    // "agents" section (which routes by ACTION name — useless for `type` keys, since
+    // every slash-command key is the same action). Precedence: layer > this > profile.
+    var agents: [String: EntryJ]? = nil
 }
 
 // The user's macOS key-repeat feel, read once at startup — deck repeat should be
@@ -394,6 +399,7 @@ struct RtEntry {
     var layerName: String? = nil                           // action "layer_toggle": which layer
     var layerTimeout: Double? = nil                        // seconds of variant inactivity → auto-off
     var layerVariants: [String: RtEntry] = [:]             // layer name → replacement while active
+    var agentVariants: [String: RtEntry] = [:]             // agent label → replacement for THIS control
 }
 
 struct RtKnob {
@@ -540,8 +546,18 @@ func buildButtonEntry(_ name: String, _ e: EntryJ, _ res: inout LoadResult) -> R
             res.errors.append("\(ctx): layer variant needs a key/button action (not layer_toggle)")
             continue
         }
-        var flat = v; flat.layers = nil
+        var flat = v; flat.layers = nil; flat.agents = nil
         if let ve = buildButtonEntry(ctx, flat, &res) { entry.layerVariants[lname] = ve }
+    }
+    // Per-entry agent variants (same depth-1 rule).
+    for (aname, v) in (e.agents ?? [:]).sorted(by: { $0.key < $1.key }) {
+        let ctx = "\(name).agents.\(aname)"
+        guard BUTTON_ACTIONS.contains(v.action), v.action != "layer_toggle" else {
+            res.errors.append("\(ctx): agent variant needs a key/button action (not layer_toggle)")
+            continue
+        }
+        var flat = v; flat.layers = nil; flat.agents = nil
+        if let ve = buildButtonEntry(ctx, flat, &res) { entry.agentVariants[aname] = ve }
     }
     return entry
 }
@@ -582,6 +598,9 @@ func buildRuntime(_ p: ProfileJ, census: [String: CensusId]) -> LoadResult {
             if name.hasSuffix(".click") || name.hasPrefix("transport.") {
                 res.warnings.append("\(name): knob action \"\(e.action)\" on a momentary button — turns won't happen")
             }
+            if e.agents != nil {
+                res.warnings.append("\(name): per-entry \"agents\" applies to key/button entries — ignored on a knob")
+            }
             guard var knob = buildKnobEntry(name, e, &res) else { continue }
             for (lname, v) in (e.layers ?? [:]).sorted(by: { $0.key < $1.key }) {
                 let ctx = "\(name).layers.\(lname)"
@@ -619,7 +638,8 @@ func buildRuntime(_ p: ProfileJ, census: [String: CensusId]) -> LoadResult {
                 res.errors.append("\(ctx): unknown action \"\(e.action)\"")
                 continue
             }
-            guard let entry = buildButtonEntry(ctx, e, &res) else { continue }
+            var flat = e; flat.agents = nil; flat.layers = nil   // override values don't nest
+            guard let entry = buildButtonEntry(ctx, flat, &res) else { continue }
             table[verb] = entry
         }
         if !table.isEmpty { rt.agentOverrides[label] = table }
@@ -1006,8 +1026,14 @@ final class Engine {
     }
 
     private func route(_ e: RtEntry, _ m: RuntimeMapping) -> RtEntry {
-        guard !m.agentOverrides.isEmpty else { return e }   // zero cost for single-agent profiles
-        guard let label = detectAgent(m), let o = m.agentOverrides[label]?[e.action] else { return e }
+        // zero cost for single-agent profiles: no overrides anywhere → no detection
+        guard !e.agentVariants.isEmpty || !m.agentOverrides.isEmpty else { return e }
+        guard let label = detectAgent(m) else { return e }
+        if let o = e.agentVariants[label] {                    // per-control beats per-action
+            log("route: \(label) → \(e.control) ⇒ \(o.action)")
+            return o
+        }
+        guard let o = m.agentOverrides[label]?[e.action] else { return e }
         log("route: \(label) → \(e.action) ⇒ \(o.action)")
         return o
     }

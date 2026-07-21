@@ -46,6 +46,7 @@ struct ProfileEntryJ: Codable {
     var layer: String? = nil
     var layers: [String: ProfileEntryJ]? = nil
     var timeoutMs: Int? = nil
+    var agents: [String: ProfileEntryJ]? = nil
 }
 struct ProfileFileJ: Codable {
     let app: String?; let chime: String?; var controls: [String: ProfileEntryJ]
@@ -769,6 +770,60 @@ final class Store: ObservableObject {
         checkSkill()
     }
 
+    // MARK: Copy / paste a mapping between controls
+    //
+    // The clipboard holds the FULL entry — payload plus the fields the GUI doesn't
+    // edit (repeat, ptt style, layers, timeoutMs) — with identity (note/cc) and label
+    // stripped: those belong to the source control, not the mapping.
+    @Published var clipboard: ProfileEntryJ?
+    var clipboardFrom: String?
+
+    private func strippedForClipboard(_ e: ProfileEntryJ) -> ProfileEntryJ {
+        ProfileEntryJ(action: e.action, text: e.text, chord: e.chord, keys: e.keys,
+                      cw: e.cw, ccw: e.ccw, command: e.command, mode: e.mode, invert: e.invert,
+                      note: nil, cc: nil, label: nil,
+                      repeat: e.`repeat`, repeatDelayMs: e.repeatDelayMs, repeatRateMs: e.repeatRateMs,
+                      style: e.style, layer: e.layer, layers: e.layers, timeoutMs: e.timeoutMs,
+                      agents: e.agents)
+    }
+
+    func copyAssign(_ slot: String) {
+        guard let a = assigns[slot], a.action != "none" else {
+            status = "nothing to copy on \(control(for: slot)?.name ?? slot)"
+            return
+        }
+        let e = rawEntries[slot] ?? ProfileEntryJ(
+            action: a.action,
+            text: a.action == "type" ? a.command : nil,
+            chord: a.action == "key" ? a.command : nil,
+            keys: nil, cw: nil, ccw: nil,
+            command: a.action == "shell" ? a.command : nil,
+            mode: isTurnSlot(slot) ? "absolute" : nil,
+            invert: a.invert ? true : nil,
+            note: nil, cc: nil, label: nil)
+        clipboard = strippedForClipboard(e)
+        clipboardFrom = control(for: slot)?.name ?? slot
+        status = "copied \(clipboardFrom!) (\(a.action)) — select another control and paste"
+    }
+
+    func pasteAssign(to slot: String) {
+        guard let e = clipboard else { return }
+        // The engine decodes button-vs-knob BY ACTION: knob actions only make sense
+        // on encoder turns, key actions everywhere else. Block impossible pastes.
+        let knobAction = ["select", "effort", "scroll", "scroll_page", "turn"].contains(e.action)
+        if knobAction != isTurnSlot(slot) {
+            status = knobAction ? "can't paste a knob action onto a key/button"
+                                : "can't paste a key action onto an encoder turn"
+            return
+        }
+        rawEntries[slot] = e
+        assigns[slot] = Assign(action: e.action,
+                               command: e.command ?? e.text ?? e.chord ?? "",
+                               invert: e.invert ?? false)
+        markDirty()
+        status = "pasted \(e.action) from \(clipboardFrom ?? "?") onto \(control(for: slot)?.name ?? slot)"
+    }
+
     /// Remove a control's mapping entirely (assignment + any agent-authored payload
     /// we were preserving). Autosave then writes the profile without the entry.
     func clearAssign(_ slot: String) {
@@ -802,7 +857,8 @@ final class Store: ObservableObject {
                     invert: isTurnSlot(slot) ? (a.invert ? true : nil) : raw.invert,
                     note: raw.note, cc: raw.cc, label: raw.label,
                     repeat: raw.`repeat`, repeatDelayMs: raw.repeatDelayMs, repeatRateMs: raw.repeatRateMs,
-                    style: raw.style, layer: raw.layer, layers: raw.layers, timeoutMs: raw.timeoutMs)
+                    style: raw.style, layer: raw.layer, layers: raw.layers, timeoutMs: raw.timeoutMs,
+                    agents: raw.agents)
                 continue
             }
             let isKnob = isTurnSlot(slot)
@@ -1184,6 +1240,14 @@ struct DetailPanel: View {
                         Button("clear") { store.clearAssign(effSlot) }
                             .font(.caption)
                             .help("Remove this control's mapping from the profile")
+                        Button("copy") { store.copyAssign(effSlot) }
+                            .font(.caption)
+                            .help("Copy this mapping — payload plus repeat/style/layers — then select another control and paste")
+                    }
+                    if store.clipboard != nil {
+                        Button("paste ⤶ \(store.clipboardFrom ?? "")") { store.pasteAssign(to: effSlot) }
+                            .font(.caption)
+                            .help("Paste the copied mapping onto this control (knob actions only fit encoder turns)")
                     }
                 }
                 }

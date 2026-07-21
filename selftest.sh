@@ -204,6 +204,24 @@ check "nop logs, sends nothing"        "grep -q 'nop (kb.b1)' '$RTLOG'"
 sed -i '' 's/echo codex/false/' "$OPXY_CONFIG_DIR/profiles/route.json"
 printf 'channel 1 control-change 56 127\nchannel 1 control-change 56 0\n' | ./opxy-bridge --dry-run > "$RTLOG" 2>&1
 check "failed detect falls back to base" "grep -q '\[dry\] Enter' '$RTLOG' && ! grep -q 'route:' '$RTLOG'"
+# per-ENTRY agent override: `type` keys can differ per agent (action-level can't
+# express that — every slash-command key is the same action). Entry beats profile.
+cat > "$OPXY_CONFIG_DIR/profiles/route2.json" <<'EOF'
+{
+  "detect": "echo codex",
+  "controls": {
+    "kb.b1": { "action": "type", "text": "claude-cmd",
+               "agents": { "codex": { "action": "type", "text": "codex-cmd" } } },
+    "transport.play": { "action": "submit" }
+  },
+  "agents": { "codex": { "type": { "action": "nop" } } }
+}
+EOF
+./opxy-bridge --check route2 >/dev/null 2>&1 && ok "entry-level agents validates" || bad "entry-level agents validates"
+./opxy-bridge --use route2 >/dev/null 2>&1
+R2LOG="$TD/route2.log"
+printf 'channel 1 note-on 56 100\nchannel 1 note-off 56 0\n' | ./opxy-bridge --dry-run > "$R2LOG" 2>&1
+check "entry variant fires (beats profile-level)" "grep -q 'type \"codex-cmd\"' '$R2LOG' && ! grep -q 'claude-cmd' '$R2LOG' && ! grep -q 'nop' '$R2LOG'"
 cat > "$TD/badroute.json" <<'EOF'
 { "controls": { "transport.play": { "action": "submit" } },
   "agents": { "codex": { "select": { "action": "esc" } } } }
