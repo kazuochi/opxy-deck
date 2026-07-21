@@ -123,8 +123,8 @@
     },
     "key_pen" : {
       "action" : "shell",
-      "command" : "a=$(/usr/bin/osascript -e 'tell application \"System Events\"' -e 'activate' -e 'set c to choose from list {\"claude\", \"codex\"} with title \"New agent pane\" with prompt \"Spawn in right split:\" default items {\"claude\"}' -e 'end tell' -e 'if c is false then return \"\"' -e 'return item 1 of c'); [ -n \"$a\" ] && herdr agent start \"$a-$(date +%H%M%S)\" --split right --focus -- \"$a\"",
-      "label" : "pen → agent picker (claude/codex), then spawn in right split; cancel = nop"
+      "command" : "orig=$(herdr pane current | jq -r '.result.pane.pane_id // empty'); [ -n \"$orig\" ] || exit 0; np=$(herdr pane split \"$orig\" --direction down --ratio 0.2 --focus | jq -r '.result.pane.pane_id // empty'); [ -n \"$np\" ] && herdr pane run \"$np\" \"clear; printf ' New agent:\\n 1) claude\\n 2) codex\\n> '; read c; case \\$c in 1) a=claude;; 2) a=codex;; *) a=;; esac; herdr agent focus $orig; [ -n \\\"\\$a\\\" ] && herdr agent start \\\"\\$a-\\$(date +%H%M%S)\\\" --split right --focus -- \\$a; exit\"",
+      "label" : "pen → CLI agent picker in temp bottom pane (1=claude 2=codex, play alone cancels)"
     },
     "key_plus" : {
       "action" : "shell",
