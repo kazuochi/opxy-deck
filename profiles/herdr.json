@@ -1,295 +1,319 @@
 {
-  "agents": {
-    "codex": {
-      "effort_command": {
-        "action": "type",
-        "label": "codex: effort lives inside /model",
-        "text": "/model\n"
+  "agents" : {
+    "codex" : {
+      "effort_command" : {
+        "action" : "type",
+        "label" : "codex: effort lives inside \/model",
+        "text" : "\/model\n"
       },
-      "ptt": {
-        "action": "ptt",
-        "label": "codex: native hold-to-dictate (v0.105+)",
-        "style": "hold"
+      "ptt" : {
+        "action" : "ptt",
+        "label" : "codex: native hold-to-dictate (v0.105+)",
+        "style" : "hold"
       },
-      "thinking_toggle": {
-        "action": "nop",
-        "label": "codex: no thinking-toggle equivalent"
+      "thinking_toggle" : {
+        "action" : "nop",
+        "label" : "codex: no thinking-toggle equivalent"
       }
     }
   },
-  "app": "herdr (multi-agent)",
-  "chime": "Ping",
-  "controls": {
-    "enc1.click": {
-      "action": "submit",
-      "label": "encoder 1 click → submit"
+  "app" : "herdr (multi-agent)",
+  "chime" : "Ping",
+  "controls" : {
+    "enc1.click" : {
+      "action" : "submit",
+      "label" : "encoder 1 click → submit"
     },
-    "enc1.turn": {
-      "action": "select",
-      "mode": "absolute"
+    "enc1.turn" : {
+      "action" : "select",
+      "mode" : "absolute"
     },
-    "enc2.click": {
-      "action": "layer_toggle",
-      "label": "encoder 2 click → edit layer (auto-exits 1.5s after last twist)",
-      "layer": "edit",
-      "timeoutMs": 1500
+    "enc2.click" : {
+      "action" : "layer_toggle",
+      "label" : "encoder 2 click → edit layer (auto-exits 1.5s after last twist)",
+      "layer" : "edit",
+      "timeoutMs" : 1500
     },
-    "enc2.turn": {
-      "action": "effort",
-      "label": "encoder 2 turn → effort",
-      "layers": {
-        "edit": {
-          "action": "turn",
-          "ccw": "Backspace",
-          "cw": "Right",
-          "label": "edit layer: ccw deletes a char per detent, cw walks cursor right"
+    "enc2.turn" : {
+      "action" : "effort",
+      "label" : "encoder 2 turn → effort",
+      "layers" : {
+        "edit" : {
+          "action" : "turn",
+          "ccw" : "Backspace",
+          "cw" : "Right",
+          "label" : "edit layer: ccw deletes a char per detent, cw walks cursor right"
         }
       },
-      "mode": "absolute"
+      "mode" : "absolute"
     },
-    "enc3.turn": {
-      "action": "scroll",
-      "invert": true,
-      "label": "encoder 3 turn → scroll",
-      "mode": "absolute"
+    "enc3.click" : {
+      "action" : "shell",
+      "command" : "herdr pane zoom --toggle"
     },
-    "enc4.turn": {
-      "action": "scroll_page",
-      "invert": true,
-      "label": "encoder 4 turn → scroll_page",
-      "mode": "absolute"
+    "enc3.turn" : {
+      "action" : "scroll",
+      "invert" : true,
+      "label" : "encoder 3 turn → scroll",
+      "mode" : "absolute"
     },
-    "kb.b0": {
-      "action": "type",
-      "label": "black key 1 → types 1 (answer selection)",
-      "text": "1"
+    "enc4.turn" : {
+      "action" : "scroll_page",
+      "invert" : true,
+      "label" : "encoder 4 turn → scroll_page",
+      "mode" : "absolute"
     },
-    "kb.b1": {
-      "action": "type",
-      "label": "black key 2 → types 2",
-      "text": "2"
+    "kb.b0" : {
+      "action" : "type",
+      "label" : "black key 1 → types 1 (answer selection)",
+      "text" : "1"
     },
-    "kb.b2": {
-      "action": "type",
-      "label": "black key 3 → types 3",
-      "text": "3"
+    "kb.b1" : {
+      "action" : "type",
+      "label" : "black key 2 → types 2",
+      "text" : "2"
     },
-    "kb.b3": {
-      "action": "type",
-      "label": "black key 4 → types 4",
-      "text": "4"
+    "kb.b2" : {
+      "action" : "type",
+      "label" : "black key 3 → types 3",
+      "text" : "3"
     },
-    "kb.b4": {
-      "action": "type",
-      "label": "black key 5 → types 5",
-      "text": "5"
+    "kb.b3" : {
+      "action" : "type",
+      "label" : "black key 4 → types 4",
+      "text" : "4"
     },
-    "kb.w0": {
-      "action": "type",
-      "text": "/"
+    "kb.b4" : {
+      "action" : "type",
+      "label" : "black key 5 → types 5",
+      "text" : "5"
     },
-    "kb.w12": {
-      "action": "type",
-      "label": "kb.w12 → /effort",
-      "text": "/effort\n"
+    "kb.w0" : {
+      "action" : "type",
+      "text" : "\/"
     },
-    "kb.w13": {
-      "action": "type",
-      "label": "kb.w13 → /model",
-      "text": "/model\n"
+    "kb.w12" : {
+      "action" : "type",
+      "label" : "kb.w12 → \/effort",
+      "text" : "\/effort\n"
     },
-    "key_audio": {
-      "action": "key",
-      "chord": "C-u",
-      "label": "audio → kill to line start (nuke the draft)"
+    "kb.w13" : {
+      "action" : "type",
+      "label" : "kb.w13 → \/model",
+      "text" : "\/model\n"
     },
-    "key_bar": {
-      "action": "key",
-      "chord": "C-y",
-      "label": "bar → yank back what was killed (undo delete)"
+    "key_audio" : {
+      "action" : "key",
+      "chord" : "C-u",
+      "label" : "audio → kill to line start (nuke the draft)"
     },
-    "key_com": {
-      "action": "key",
-      "chord": "Backspace"
+    "key_bar" : {
+      "action" : "key",
+      "chord" : "C-y",
+      "label" : "bar → yank back what was killed (undo delete)"
     },
-    "key_minus": {
-      "action": "shell",
-      "command": "/usr/bin/osascript -e 'tell application \"System Events\"' -e 'keystroke \"/effort\"' -e 'delay 0.15' -e 'key code 36' -e 'delay 0.5' -e 'key code 123' -e 'delay 0.15' -e 'key code 36' -e 'end tell'",
-      "label": "minus → /effort, Left, Enter (lower effort, paced)"
+    "key_com" : {
+      "action" : "key",
+      "chord" : "Backspace"
     },
-    "key_plus": {
-      "action": "shell",
-      "command": "/usr/bin/osascript -e 'tell application \"System Events\"' -e 'keystroke \"/effort\"' -e 'delay 0.15' -e 'key code 36' -e 'delay 0.5' -e 'key code 124' -e 'delay 0.15' -e 'key code 36' -e 'end tell'",
-      "label": "plus → /effort, Right, Enter (raise effort, paced)"
+    "key_minus" : {
+      "action" : "shell",
+      "command" : "\/usr\/bin\/osascript -e 'tell application \"System Events\"' -e 'keystroke \"\/effort\"' -e 'delay 0.15' -e 'key code 36' -e 'delay 0.5' -e 'key code 123' -e 'delay 0.15' -e 'key code 36' -e 'end tell'",
+      "label" : "minus → \/effort, Left, Enter (lower effort, paced)"
     },
-    "key_seq": {
-      "action": "key",
-      "chord": "C-w",
-      "label": "seq → delete word (readline kill; push per word)"
+    "key_pen" : {
+      "action" : "shell",
+      "command" : "herdr agent start \"claude-$(date +%H%M%S)\" --split right --focus -- claude"
     },
-    "mod10": {
-      "action": "shell",
-      "cc": 20,
-      "command": "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[1].tab_id // empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label": "track 2 → herdr tab 2"
+    "key_plus" : {
+      "action" : "shell",
+      "command" : "\/usr\/bin\/osascript -e 'tell application \"System Events\"' -e 'keystroke \"\/effort\"' -e 'delay 0.15' -e 'key code 36' -e 'delay 0.5' -e 'key code 124' -e 'delay 0.15' -e 'key code 36' -e 'end tell'",
+      "label" : "plus → \/effort, Right, Enter (raise effort, paced)"
     },
-    "mod11": {
-      "action": "shell",
-      "cc": 21,
-      "command": "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[2].tab_id // empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label": "track 3 → herdr tab 3"
+    "key_seq" : {
+      "action" : "key",
+      "chord" : "C-w",
+      "label" : "seq → delete word (readline kill; push per word)"
     },
-    "mod12": {
-      "action": "shell",
-      "cc": 22,
-      "command": "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[3].tab_id // empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label": "track 4 → herdr tab 4"
+    "mod1" : {
+      "action" : "shell",
+      "command" : "herdr pane focus --direction left"
     },
-    "mod13": {
-      "action": "shell",
-      "cc": 23,
-      "command": "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[4].tab_id // empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label": "track 5 → herdr tab 5"
+    "mod10" : {
+      "action" : "shell",
+      "cc" : 20,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[1].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 2 → herdr tab 2"
     },
-    "mod14": {
-      "action": "shell",
-      "cc": 24,
-      "command": "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[5].tab_id // empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label": "track 6 → herdr tab 6"
+    "mod11" : {
+      "action" : "shell",
+      "cc" : 21,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[2].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 3 → herdr tab 3"
     },
-    "mod15": {
-      "action": "shell",
-      "cc": 25,
-      "command": "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[6].tab_id // empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label": "track 7 → herdr tab 7"
+    "mod12" : {
+      "action" : "shell",
+      "cc" : 22,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[3].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 4 → herdr tab 4"
     },
-    "mod16": {
-      "action": "shell",
-      "cc": 26,
-      "command": "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[7].tab_id // empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label": "track 8 → herdr tab 8"
+    "mod13" : {
+      "action" : "shell",
+      "cc" : 23,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[4].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 5 → herdr tab 5"
     },
-    "mod5": {
-      "action": "shell",
-      "cc": 11,
-      "command": "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==1).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
-      "label": "space 1 → herdr workspace 1 (nop if absent)"
+    "mod14" : {
+      "action" : "shell",
+      "cc" : 24,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[5].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 6 → herdr tab 6"
     },
-    "mod6": {
-      "action": "shell",
-      "cc": 12,
-      "command": "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==2).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
-      "label": "space 2 → herdr workspace 2"
+    "mod15" : {
+      "action" : "shell",
+      "cc" : 25,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[6].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 7 → herdr tab 7"
     },
-    "mod7": {
-      "action": "shell",
-      "cc": 13,
-      "command": "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==3).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
-      "label": "space 3 → herdr workspace 3"
+    "mod16" : {
+      "action" : "shell",
+      "cc" : 26,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[7].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 8 → herdr tab 8"
     },
-    "mod8": {
-      "action": "shell",
-      "cc": 14,
-      "command": "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==4).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
-      "label": "space 4 → herdr workspace 4"
+    "mod2" : {
+      "action" : "shell",
+      "command" : "herdr pane focus --direction down"
     },
-    "mod9": {
-      "action": "shell",
-      "cc": 19,
-      "command": "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[0].tab_id // empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
-      "label": "track 1 → herdr tab 1 (focused workspace, nop if absent)"
+    "mod3" : {
+      "action" : "shell",
+      "command" : "herdr pane focus --direction up"
     },
-    "step1": {
-      "action": "shell",
-      "command": "herdr pane focus --direction left",
-      "label": "step 1 → herdr focus left (h)"
+    "mod4" : {
+      "action" : "shell",
+      "command" : "herdr pane focus --direction right"
     },
-    "step10": {
-      "action": "shell",
-      "command": "t=$(herdr agent list | jq -r '.result.agents[3].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label": "step 10 → agent 4"
+    "mod5" : {
+      "action" : "shell",
+      "cc" : 11,
+      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==1).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
+      "label" : "space 1 → herdr workspace 1 (nop if absent)"
     },
-    "step11": {
-      "action": "shell",
-      "command": "t=$(herdr agent list | jq -r '.result.agents[4].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label": "step 11 → agent 5"
+    "mod6" : {
+      "action" : "shell",
+      "cc" : 12,
+      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==2).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
+      "label" : "space 2 → herdr workspace 2"
     },
-    "step12": {
-      "action": "shell",
-      "command": "t=$(herdr agent list | jq -r '.result.agents[5].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label": "step 12 → agent 6"
+    "mod7" : {
+      "action" : "shell",
+      "cc" : 13,
+      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==3).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
+      "label" : "space 3 → herdr workspace 3"
     },
-    "step13": {
-      "action": "shell",
-      "command": "t=$(herdr agent list | jq -r '.result.agents[6].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label": "step 13 → agent 7"
+    "mod8" : {
+      "action" : "shell",
+      "cc" : 14,
+      "command" : "id=$(herdr workspace list | jq -r '.result.workspaces[]|select(.number==4).workspace_id'); [ -n \"$id\" ] && herdr workspace focus \"$id\"",
+      "label" : "space 4 → herdr workspace 4"
     },
-    "step14": {
-      "action": "shell",
-      "command": "t=$(herdr agent list | jq -r '.result.agents[7].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label": "step 14 → agent 8"
+    "mod9" : {
+      "action" : "shell",
+      "cc" : 19,
+      "command" : "ws=$(herdr workspace list | jq -r '.result.workspaces[]|select(.focused).workspace_id'); id=$(herdr tab list --workspace \"$ws\" | jq -r '.result.tabs[0].tab_id \/\/ empty'); [ -n \"$id\" ] && herdr tab focus \"$id\"",
+      "label" : "track 1 → herdr tab 1 (focused workspace, nop if absent)"
     },
-    "step15": {
-      "action": "shell",
-      "command": "t=$(herdr agent list | jq -r '.result.agents[8].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label": "step 15 → agent 9"
+    "step1" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[0].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 1 → agent 1 (sidebar order, nop if absent)"
     },
-    "step16": {
-      "action": "profile_cycle",
-      "label": "step 16 → cycle profile (back to claude-code)"
+    "step10" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[9].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 10 → agent 10"
     },
-    "step2": {
-      "action": "shell",
-      "command": "herdr pane focus --direction down",
-      "label": "step 2 → herdr focus down (j)"
+    "step11" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[10].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 11 → agent 11"
     },
-    "step3": {
-      "action": "shell",
-      "command": "herdr pane focus --direction up",
-      "label": "step 3 → herdr focus up (k)"
+    "step12" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[11].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 12 → agent 12"
     },
-    "step4": {
-      "action": "shell",
-      "command": "herdr pane focus --direction right",
-      "label": "step 4 → herdr focus right (l)"
+    "step13" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[12].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 13 → agent 13"
     },
-    "step5": {
-      "action": "shell",
-      "command": "herdr pane zoom --toggle",
-      "label": "step 5 → herdr zoom toggle"
+    "step14" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[13].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 14 → agent 14"
     },
-    "step6": {
-      "action": "shell",
-      "command": "herdr agent start \"claude-$(date +%H%M%S)\" --split right --focus -- claude",
-      "label": "step 6 → new Claude agent in right split"
+    "step15" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[14].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 15 → agent 15"
     },
-    "step7": {
-      "action": "shell",
-      "command": "t=$(herdr agent list | jq -r '.result.agents[0].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label": "step 7 → agent 1 (sidebar order, nop if absent)"
+    "step16" : {
+      "action" : "profile_cycle",
+      "label" : "step 16 → cycle profile (back to claude-code)"
     },
-    "step8": {
-      "action": "shell",
-      "command": "t=$(herdr agent list | jq -r '.result.agents[1].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label": "step 8 → agent 2"
+    "step2" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[1].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 2 → agent 2"
     },
-    "step9": {
-      "action": "shell",
-      "command": "t=$(herdr agent list | jq -r '.result.agents[2].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
-      "label": "step 9 → agent 3"
+    "step3" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[2].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 3 → agent 3"
     },
-    "transport.play": {
-      "action": "submit",
-      "label": "play → submit"
+    "step4" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[3].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 4 → agent 4"
     },
-    "transport.record": {
-      "action": "ptt",
-      "label": "record → ptt (hold style — pairs with /voice hold)",
-      "style": "hold"
+    "step5" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[4].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 5 → agent 5"
     },
-    "transport.stop": {
-      "action": "esc",
-      "label": "stop → esc"
+    "step6" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[5].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 6 → agent 6"
+    },
+    "step7" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[6].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 7 → agent 7"
+    },
+    "step8" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[7].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 8 → agent 8"
+    },
+    "step9" : {
+      "action" : "shell",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[8].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "label" : "step 9 → agent 9"
+    },
+    "transport.play" : {
+      "action" : "submit",
+      "label" : "play → submit"
+    },
+    "transport.record" : {
+      "action" : "ptt",
+      "label" : "record → ptt (hold style — pairs with \/voice hold)",
+      "style" : "hold"
+    },
+    "transport.stop" : {
+      "action" : "esc",
+      "label" : "stop → esc"
     }
   }
 }
