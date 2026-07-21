@@ -123,7 +123,8 @@
     },
     "key_pen" : {
       "action" : "shell",
-      "command" : "herdr agent start \"claude-$(date +%H%M%S)\" --split right --focus -- claude"
+      "command" : "a=$(/usr/bin/osascript -e 'tell application \"System Events\"' -e 'activate' -e 'set c to choose from list {\"claude\", \"codex\"} with title \"New agent pane\" with prompt \"Spawn in right split:\" default items {\"claude\"}' -e 'end tell' -e 'if c is false then return \"\"' -e 'return item 1 of c'); [ -n \"$a\" ] && herdr agent start \"$a-$(date +%H%M%S)\" --split right --focus -- \"$a\"",
+      "label" : "pen → agent picker (claude/codex), then spawn in right split; cancel = nop"
     },
     "key_plus" : {
       "action" : "shell",
@@ -225,37 +226,37 @@
     },
     "step1" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[0].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[0].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 1 → agent 1 (sidebar order, nop if absent)"
     },
     "step10" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[9].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[9].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 10 → agent 10"
     },
     "step11" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[10].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[10].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 11 → agent 11"
     },
     "step12" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[11].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[11].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 12 → agent 12"
     },
     "step13" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[12].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[12].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 13 → agent 13"
     },
     "step14" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[13].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[13].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 14 → agent 14"
     },
     "step15" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[14].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[14].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 15 → agent 15"
     },
     "step16" : {
@@ -264,42 +265,42 @@
     },
     "step2" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[1].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[1].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 2 → agent 2"
     },
     "step3" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[2].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[2].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 3 → agent 3"
     },
     "step4" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[3].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[3].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 4 → agent 4"
     },
     "step5" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[4].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[4].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 5 → agent 5"
     },
     "step6" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[5].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[5].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 6 → agent 6"
     },
     "step7" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[6].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[6].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 7 → agent 7"
     },
     "step8" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[7].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[7].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 8 → agent 8"
     },
     "step9" : {
       "action" : "shell",
-      "command" : "t=$(herdr agent list | jq -r '.result.agents[8].terminal_id // empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
+      "command" : "t=$(herdr agent list | jq -r '.result.agents[8].terminal_id \/\/ empty'); [ -n \"$t\" ] && herdr agent focus \"$t\"",
       "label" : "step 9 → agent 9"
     },
     "transport.play" : {
