@@ -136,9 +136,13 @@ watch:
 doctor:
 	@./doctor.sh
 
+# Once per machine: herdr keybindings the deck profiles depend on (idempotent)
+setup-herdr:
+	@./setup-herdr.sh
+
 # Full self-test with fake MIDI (no device needed): legacy + v1 schemas, primitives,
 # --check validation, --capture, state round-trip, hot reload, --migrate
 selftest: build
 	./selftest.sh
 
-.PHONY: build deps skill gui ax-reset dev-cert miditest list sniff learn dry run tmux check use profiles capture watch doctor selftest
+.PHONY: build deps skill gui ax-reset dev-cert miditest list sniff learn dry run tmux check use profiles capture watch doctor setup-herdr selftest
