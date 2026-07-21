@@ -94,6 +94,11 @@
       "label" : "black key 5 → types 5",
       "text" : "5"
     },
+    "kb.b9" : {
+      "action" : "type",
+      "text" : "! git push origin HEAD",
+      "label" : "black key 10 → stage '! git push origin HEAD' (play to run; needs empty composer)"
+    },
     "kb.w0" : {
       "action" : "type",
       "agents" : {
